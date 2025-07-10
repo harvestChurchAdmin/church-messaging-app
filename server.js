@@ -1,32 +1,63 @@
 // server.js
 
-// --- 1. Import the Express library ---
-// We bring in the Express module to create our web application.
+// 1. Import necessary modules
 const express = require('express');
+const path = require('path');
+const apiRoutes = require('./routes/api-routes');
+const authRoutes = require('./routes/auth-routes'); // <-- ADD THIS LINE
+const passportSetup = require('./middleware/config/passport-setup'); // Assuming you import your passport setup
+const session = require('express-session'); // <-- Ensure this is imported for sessions
+const passport = require('passport'); // <-- Ensure this is imported
 
-// --- 2. Create an Express application instance ---
-// This 'app' object will be used to configure our server, define routes, etc.
+require('dotenv').config();
+
+// 2. Initialize the Express application
 const app = express();
-
-// --- 3. Define the port our server will listen on ---
-// We'll use port 3000 for development. You can access it in your browser via http://localhost:3000
 const PORT = process.env.PORT || 3000;
 
-// --- 4. Configure middleware (optional, but good practice) ---
-// app.use(express.json()); // Middleware to parse JSON request bodies
-// app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded request bodies
+// 3. Middleware
+app.use(express.json()); // For parsing application/json
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
 
-// --- 5. Define a basic route (endpoint) ---
-// When someone visits the root URL (e.g., http://localhost:3000/), this function will run.
-// 'req' is the request object (incoming data from the client).
-// 'res' is the response object (what we send back to the client).
+// Configure session middleware
+// IMPORTANT: In a production environment, you would use a more robust
+// session store (like connect-mongo or connect-pg-simple) instead of
+// the default in-memory store, which is not scalable or persistent.
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'a very secret key', // Use a strong, unique secret from .env
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        // secure: true // Uncomment in production with HTTPS
+    }
+}));
+
+// Initialize Passport and session support
+app.use(passport.initialize());
+app.use(passport.session());
+
+// 4. API Routes
+app.use('/api', apiRoutes);
+app.use('/auth', authRoutes); // <-- ADD THIS LINE to mount your auth routes
+
+// 5. Basic Route for the Homepage
 app.get('/', (req, res) => {
-    res.send('Hello from your messaging app backend!');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- 6. Start the server ---
-// The server will begin listening for incoming requests on the specified port.
+// A simple status endpoint to check if user is logged in (used by frontend)
+app.get('/status', (req, res) => {
+    if (req.isAuthenticated()) {
+        res.send(`Logged in as: ${req.user.displayName}.`);
+    } else {
+        res.send('Not logged in.');
+    }
+});
+
+
+// 6. Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Open your browser to: http://localhost:${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log('Press Ctrl+C to stop the server');
 });

@@ -3,256 +3,528 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Church SMS Messenger</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; background-color: #f4f4f4; color: #333; }
-        .container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            max-width: 800px;
-            margin: 30px auto;
-        }
-        h1, h2 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-        .auth-section { text-align: right; margin-bottom: 20px; }
-        .auth-section button, .auth-section a {
-            padding: 8px 15px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            transition: background-color 0.3s ease;
-            margin-left: 10px;
-        }
-        .login-btn { background-color: #4285F4; color: white; }
-        .login-btn:hover { background-color: #357ae8; }
-        .logout-btn { background-color: #dc3545; color: white; }
-        .logout-btn:hover { background-color: #c82333; }
-
-        form {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], textarea {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        textarea { resize: vertical; min-height: 80px; }
-        button[type="submit"] {
-            background-color: #28a745;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button[type="submit"]:hover { background-color: #218838; }
-        #responseMessage {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            background-color: #e9e9e9;
-            display: none;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .success { border-color: #28a745; background-color: #d4edda; color: #155724; }
-        .error { border-color: #dc3545; background-color: #f8d7da; color: #721c24; }
-
-        #breezePeopleList {
-            margin-top: 20px;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-        #breezePeopleList ul {
-            list-style: none;
-            padding: 0;
-        }
-        #breezePeopleList li {
-            background-color: #f0f8ff;
-            border: 1px solid #e0efff;
-            margin-bottom: 8px;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .hidden { display: none; }
-    </style>
+    <title>Harvest Church Messenger</title>
+    <!-- Google Fonts for consistency with login page -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css"> <!-- Link to the shared stylesheet -->
 </head>
-<body>
+<body class="app-body">
     <div class="container">
-        <div class="auth-section">
-            <span id="loggedInUser" class="hidden"></span>
-            <a href="/auth/google" id="loginButton" class="login-btn">Login with Google</a>
-            <button id="logoutButton" class="logout-btn hidden">Logout</button>
-        </div>
+        <div class="left-column">
+            <!-- SMS Message Section - Stays at top of left column -->
+            <h1>Send SMS Message</h1>
+            <!-- Removed the phone number input box as per request -->
+            <textarea id="message" placeholder="Enter your message"></textarea>
+            <button id="sendSms">Send SMS</button>
 
-        <h1>Church SMS Messenger</h1>
-        <p>This application allows authorized staff to send SMS messages to church members via Twilio, leveraging member data from Breeze ChMS.</p>
-
-        <div id="smsSection" class="hidden">
-            <h2>Send SMS Message</h2>
-            <form id="smsForm">
-                <label for="toPhoneNumber">Recipient Phone Number (e.g., +1234567890):</label>
-                <input type="text" id="toPhoneNumber" name="toPhoneNumber" placeholder="+1778XXXXXXX" required>
-
-                <label for="messageBody">Message:</label>
-                <textarea id="messageBody" name="messageBody" rows="4" required></textarea>
-
-                <button type="submit">Send SMS</button>
-            </form>
-            <div id="responseMessage"></div>
-        </div>
-
-        <div id="breezePeopleSection" class="hidden">
-            <h2>Breeze Church Members</h2>
-            <p>Fetching the first 5 members from Breeze ChMS:</p>
-            <div id="breezePeopleList">
-                <p>Loading members...</p>
+            <!-- People List - Now in the left column, below SMS -->
+            <h2 class="mt-8">Filtered People</h2> <!-- Added margin-top for spacing -->
+            <div class="select-all-container">
+                <input type="checkbox" id="selectAllPeopleCheckbox">
+                <label for="selectAllPeopleCheckbox">Select All Visible People</label>
             </div>
+            <ul id="peopleList">
+                <!-- People data will be inserted here by JavaScript -->
+            </ul>
         </div>
 
-        <div id="notLoggedInMessage">
-            <p>Please log in with your authorized Google Workspace account to access the messaging features and member list.</p>
+        <div class="right-column">
+            <!-- Breeze Church Management People & Tag Filtering - Moved to right column -->
+            <h2>Breeze Church Management Tags</h2>
+            <div>
+                <label>Filter by Tag:</label>
+                <div id="tagFilterContainer" class="tag-filter-container">
+                    <div id="tagLoadingIndicator" class="loading-indicator" style="display: none;">
+                        <div class="spinner"></div>
+                        Loading tags...
+                    </div>
+                    <!-- This div will hold the dynamically rendered tags and folders -->
+                    <div class="tag-content-wrapper"></div> 
+                </div>
+                <button id="applyFilterButton">Apply Tag Filter</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const loggedInUserSpan = document.getElementById('loggedInUser');
-        const loginButton = document.getElementById('loginButton');
-        const logoutButton = document.getElementById('logoutButton');
-        const smsSection = document.getElementById('smsSection');
-        const breezePeopleSection = document.getElementById('breezePeopleSection');
-        const notLoggedInMessage = document.getElementById('notLoggedInMessage');
-        const breezePeopleList = document.getElementById('breezePeopleList');
-        const smsForm = document.getElementById('smsForm');
-        const responseDiv = document.getElementById('responseMessage');
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- GLOBAL VARIABLES (within DOMContentLoaded scope) - Declare first ---
+            const peopleList = document.getElementById('peopleList');
+            const tagFilterContainer = document.getElementById('tagFilterContainer');
+            const applyFilterButton = document.getElementById('applyFilterButton');
+            const tagLoadingIndicator = document.getElementById('tagLoadingIndicator');
+            const tagContentWrapper = tagFilterContainer.querySelector('.tag-content-wrapper');
+            const sendSmsButton = document.getElementById('sendSms');
+            const selectAllPeopleCheckbox = document.getElementById('selectAllPeopleCheckbox');
 
-        // Function to update UI based on login status
-        async function updateUI() {
-            try {
-                const response = await fetch('/status'); // Use the /status endpoint you already have
-                const text = await response.text(); // Get raw text to check for "Logged in as"
+            let allTagsData = []; // Stores the full tag tree for state management
+            let selectedPeopleForSms = new Map(); // Stores {personId: phoneNumber} for selected people
+            let lastAppliedTagIds = []; // Stores the tag IDs from the last applied filter
 
-                if (text.includes('Logged in as:')) {
-                    // User is logged in
-                    const userNameMatch = text.match(/Logged in as: (.*?)\./);
-                    const userName = userNameMatch ? userNameMatch[1] : 'User';
 
-                    loggedInUserSpan.textContent = `Logged in as ${userName}`;
-                    loggedInUserSpan.classList.remove('hidden');
-                    loginButton.classList.add('hidden');
-                    logoutButton.classList.remove('hidden');
-                    smsSection.classList.remove('hidden');
-                    breezePeopleSection.classList.remove('hidden');
-                    notLoggedInMessage.classList.add('hidden');
+            // --- ALL FUNCTION DECLARATIONS GO HERE (after global variables, before initial calls) ---
 
-                    fetchBreezePeople(); // Fetch Breeze data if logged in
+            // Custom message box function (replaces alert)
+            function showMessageBox(message, type = 'info') {
+                const messageBox = document.createElement('div');
+                messageBox.classList.add('message-box', type);
+                messageBox.textContent = message;
+                document.body.appendChild(messageBox);
 
-                } else {
-                    // User is not logged in
-                    loggedInUserSpan.classList.add('hidden');
-                    loginButton.classList.remove('hidden');
-                    logoutButton.classList.add('hidden');
-                    smsSection.classList.add('hidden');
-                    breezePeopleSection.classList.add('hidden');
-                    notLoggedInMessage.classList.remove('hidden');
-                }
-            } catch (error) {
-                console.error('Error checking login status:', error);
-                // Fallback to not logged in state
-                loggedInUserSpan.classList.add('hidden');
-                loginButton.classList.remove('hidden');
-                logoutButton.classList.add('hidden');
-                smsSection.classList.add('hidden');
-                breezePeopleSection.classList.add('hidden');
-                notLoggedInMessage.classList.remove('hidden');
+                // Automatically remove after a few seconds
+                setTimeout(() => {
+                    messageBox.remove();
+                }, 3000); // 3 seconds
             }
-        }
 
-        // Function to fetch Breeze People
-        async function fetchBreezePeople() {
-            breezePeopleList.innerHTML = '<p>Loading members...</p>'; // Show loading message
-            try {
-                const response = await fetch('/api/people'); // Your existing API endpoint
-                if (response.ok) {
-                    const people = await response.json();
-                    if (people && people.length > 0) {
-                        const ul = document.createElement('ul');
-                        people.forEach(person => {
-                            const li = document.createElement('li');
-                            li.textContent = `${person.first_name} ${person.last_name} (ID: ${person.id})`;
-                            ul.appendChild(li);
-                        });
-                        breezePeopleList.innerHTML = ''; // Clear loading message
-                        breezePeopleList.appendChild(ul);
-                    } else {
-                        breezePeopleList.innerHTML = '<p>No members found in Breeze or you lack permissions.</p>';
+            /**
+             * Recursively updates the 'checked' state of a tag or folder within the allTagsData structure.
+             * This ensures the master data source reflects UI changes.
+             * @param {string} id - The ID of the tag or folder to update.
+             * @param {boolean} checked - The new checked state.
+             * @param {string} type - 'tag' or 'folder'
+             * @param {Array<Object>} nodes - The current level of nodes to search.
+             * @returns {boolean} - True if the node was found and updated.
+             */
+            function updateTagCheckedState(id, checked, type, nodes) {
+                nodes = nodes || allTagsData; // Ensure nodes is always an array
+
+                console.log(`DEBUG (Frontend - updateTagCheckedState): Attempting to update ID: ${id}, Checked: ${checked}, Type: ${type}`);
+
+                for (const node of nodes) {
+                    if (node.id === id && node.type === type) {
+                        node.checked = checked;
+                        console.log(`DEBUG (Frontend - updateTagCheckedState): Successfully updated ${type} ${node.name} (ID: ${node.id}) to checked: ${node.checked}`);
+                        return true; // Found and updated
                     }
-                } else {
-                    const errorData = await response.json();
-                    breezePeopleList.innerHTML = `<p class="error">Error fetching Breeze members: ${errorData.message || 'Unknown error'}</p>`;
-                    console.error('Error fetching Breeze members:', errorData);
+                    if (node.children && node.children.length > 0) {
+                        if (updateTagCheckedState(id, checked, type, node.children)) {
+                            return true; // Found in children
+                        }
+                    }
+                    if (node.tags && node.tags.length > 0 && type === 'tag') { 
+                        for (const tag of node.tags) {
+                            if (tag.id === id) {
+                                tag.checked = checked;
+                                console.log(`DEBUG (Frontend - updateTagCheckedState): Successfully updated tag ${tag.name} (ID: ${tag.id}) to checked: ${tag.checked}`);
+                                return true; // Found and updated
+                            }
+                        }
+                    }
                 }
-            } catch (error) {
-                breezePeopleList.innerHTML = `<p class="error">Network error fetching Breeze members: ${error.message}</p>`;
-                console.error('Network error fetching Breeze members:', error);
+                console.log(`DEBUG (Frontend - updateTagCheckedState): Could not find ${type} with ID: ${id} in current branch.`);
+                return false; // Not found
             }
-        }
 
-        // Event listener for SMS form submission
-        smsForm.addEventListener('submit', async function(event) {
-            event.preventDefault();
+            /**
+             * Recursively checks/unchecks all children (sub-folders and tags) of a given node.
+             * @param {Object} node - The current folder node.
+             * @param {boolean} checked - The checked state to apply.
+             */
+            function checkAllChildren(node, checked) {
+                if (node.children) {
+                    node.children.forEach(child => {
+                        const checkbox = document.getElementById(`checkbox-${child.id}`);
+                        if (checkbox) {
+                            checkbox.checked = checked;
+                            updateTagCheckedState(child.id, checked, 'folder');
+                        }
+                        checkAllChildren(child, checked); // Recursively check sub-folders
+                    });
+                }
+                if (node.tags) {
+                    node.tags.forEach(tag => {
+                        const checkbox = document.getElementById(`checkbox-${tag.id}`);
+                        if (checkbox) {
+                            checkbox.checked = checked;
+                            updateTagCheckedState(tag.id, checked, 'tag');
+                        }
+                    });
+                }
+            }
 
-            const toPhoneNumber = document.getElementById('toPhoneNumber').value;
-            const messageBody = document.getElementById('messageBody').value;
+            /**
+             * Recursively collects the IDs of all selected tags.
+             * @param {Array<Object>} nodes - An array of folder or tag nodes.
+             * @param {Array<string>} selectedIds - The array to populate with selected tag IDs.
+             */
+            function collectSelectedTagIds(nodes, selectedIds) {
+                nodes.forEach(node => {
+                    if (node.type === 'tag' && node.checked) {
+                        selectedIds.push(node.id);
+                    }
+                    if (node.children) {
+                        collectSelectedTagIds(node.children, selectedIds);
+                    }
+                    if (node.tags) {
+                        node.tags.forEach(tag => {
+                            if (tag.checked) {
+                                selectedIds.push(tag.id);
+                            }
+                        });
+                    }
+                });
+            }
 
-            responseDiv.style.display = 'block';
-            responseDiv.className = '';
-            responseDiv.textContent = 'Sending message...';
+            /**
+             * Extracts the mobile phone number from a person object based on the new payload structure.
+             * The phone data is expected within the 'details' object, under the field ID '1413026988',
+             * which is an array of phone entries, each with 'phone_number' and 'phone_type'.
+             * @param {Object} person - The person object from Breeze API.
+             * @returns {string} The mobile phone number, or 'N/A' if not found.
+             */
+            function getMobilePhoneNumber(person) {
+                // Access the 'details' object first, then the specific field ID '1413026988'.
+                // Ensure 'details' exists before trying to access its properties.
+                const phoneEntries = person.details && person.details['1413026988'];
 
-            try {
-                const response = await fetch('/api/send-message', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ to: toPhoneNumber, message: messageBody })
+                if (Array.isArray(phoneEntries)) {
+                    // Find the entry that specifically has 'phone_type' as 'mobile'
+                    const mobileEntry = phoneEntries.find(entry => 
+                        entry && entry.phone_type === 'mobile' && entry.phone_number
+                    );
+                    if (mobileEntry) {
+                        return mobileEntry.phone_number;
+                    }
+                    // If no 'mobile' type, try to return the first available number
+                    // (e.g., home or work phone if mobile is not present)
+                    if (phoneEntries.length > 0 && phoneEntries[0].phone_number) {
+                        return phoneEntries[0].phone_number;
+                    }
+                }
+                return 'N/A';
+            }
+
+            /**
+             * Displays the list of people in the UI with checkboxes, name, and phone.
+             * @param {Array<Object>} people - An array of person objects.
+             */
+            function displayPeople(people) {
+                peopleList.innerHTML = ''; // Clear existing list
+                selectedPeopleForSms.clear(); // Clear previously selected people for SMS
+                selectAllPeopleCheckbox.checked = false; // Reset select all checkbox
+
+                if (people.length === 0) {
+                    peopleList.innerHTML = '<li>No people found for the selected tags.</li>';
+                    // Ensure select all is disabled if no people
+                    selectAllPeopleCheckbox.disabled = true; 
+                    return;
+                }
+
+                // The selectAllPeopleCheckbox should always be enabled if there are people
+                selectAllPeopleCheckbox.disabled = false;
+
+                people.forEach(person => {
+                    console.log('DEBUG (Frontend - displayPeople): Person object received:', person); // NEW DEBUG LOG for person object
+
+                    const li = document.createElement('li');
+                    li.classList.add('person-item'); // Add a class for potential styling
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `person-checkbox-${person.id}`;
+                    checkbox.value = person.id; // Store person ID in value
+                    
+                    const phoneNumber = getMobilePhoneNumber(person);
+                    checkbox.dataset.phoneNumber = phoneNumber; // Store phone number in dataset
+
+                    let labelText = `${person.first_name || ''} ${person.last_name || ''}`.trim();
+
+                    if (phoneNumber === 'N/A') {
+                        checkbox.disabled = true; // Disable checkbox if no mobile number
+                        labelText += ' (No Mobile Number)';
+                    } else {
+                        labelText += ` (${phoneNumber})`;
+                    }
+
+                    // Add event listener for selecting people for SMS
+                    checkbox.addEventListener('change', (event) => {
+                        const personId = event.target.value;
+                        const number = event.target.dataset.phoneNumber;
+                        if (event.target.checked) {
+                            selectedPeopleForSms.set(personId, number);
+                        } else {
+                            selectedPeopleForSms.delete(personId);
+                        }
+                        // Update selectAllPeopleCheckbox state
+                        updateSelectAllCheckboxState();
+                    });
+
+                    const label = document.createElement('label');
+                    label.htmlFor = `person-checkbox-${person.id}`;
+                    label.textContent = labelText;
+
+                    li.appendChild(checkbox);
+                    li.appendChild(label);
+                    peopleList.appendChild(li);
                 });
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    responseDiv.className = 'success';
-                    responseDiv.textContent = `Success! ${data.message}\nSID: ${data.sid}\nStatus: ${data.status}`;
-                } else {
-                    responseDiv.className = 'error';
-                    responseDiv.textContent = `Error: ${data.message || 'Unknown error'}\nDetails: ${JSON.stringify(data.error)}`;
-                }
-            } catch (error) {
-                responseDiv.className = 'error';
-                responseDiv.textContent = `Network or client error: ${error.message}`;
-                console.error('Fetch error:', error);
+                // Ensure initial state of selectAllPeopleCheckbox is correct
+                updateSelectAllCheckboxState(); 
             }
-        });
 
-        // Event listener for logout button
-        logoutButton.addEventListener('click', async function() {
-            window.location.href = '/auth/logout'; // Redirect to the logout route
-        });
+            /**
+             * Updates the state of the "Select All" checkbox based on individual checkboxes.
+             */
+            function updateSelectAllCheckboxState() {
+                // Only consider checkboxes that are not disabled
+                const visibleEnabledCheckboxes = Array.from(peopleList.querySelectorAll('input[type="checkbox"]:not([disabled])'));
+                const checkedEnabledCheckboxes = Array.from(peopleList.querySelectorAll('input[type="checkbox"]:checked:not([disabled])'));
 
-        // Initial UI update when the page loads
-        document.addEventListener('DOMContentLoaded', updateUI);
+                if (visibleEnabledCheckboxes.length > 0 && visibleEnabledCheckboxes.length === checkedEnabledCheckboxes.length) {
+                    selectAllPeopleCheckbox.checked = true;
+                } else {
+                    selectAllPeopleCheckbox.checked = false;
+                }
+            }
+
+
+            /**
+             * Recursively renders the tag tree (folders and tags) into the DOM.
+             * This function must be defined BEFORE fetchTagsAndRender.
+             * @param {Array<Object>} nodes - An array of folder or tag nodes.
+             * @param {HTMLElement} parentElement - The DOM element to append nodes to.
+             */
+            function renderTagTree(nodes, parentElement) {
+                nodes.forEach(node => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.classList.add('tag-item');
+                    itemDiv.style.marginLeft = `${node.type === 'tag' ? 20 : 0}px`; 
+
+                    if (node.type === 'folder') {
+                        const folderHeader = document.createElement('div');
+                        folderHeader.classList.add('folder-header');
+                        
+                        const toggleIcon = document.createElement('span');
+                        toggleIcon.classList.add('toggle-icon');
+                        toggleIcon.innerHTML = node.expanded ? '&#9660;' : '&#9658;';
+                        folderHeader.appendChild(toggleIcon);
+
+                        const folderCheckbox = document.createElement('input');
+                        folderCheckbox.type = 'checkbox';
+                        folderCheckbox.id = `checkbox-${node.id}`;
+                        folderCheckbox.dataset.id = node.id;
+                        folderCheckbox.dataset.type = 'folder';
+                        folderCheckbox.checked = node.checked;
+                        folderHeader.appendChild(folderCheckbox);
+
+                        const folderLabel = document.createElement('label');
+                        folderLabel.htmlFor = `checkbox-${node.id}`;
+                        folderLabel.textContent = node.name;
+                        folderHeader.appendChild(folderLabel);
+                        
+                        itemDiv.appendChild(folderHeader);
+
+                        const childrenContainer = document.createElement('div');
+                        childrenContainer.classList.add('folder-children');
+                        if (!node.expanded) {
+                            childrenContainer.style.display = 'none';
+                        }
+                        
+                        if (node.children && node.children.length > 0) {
+                            renderTagTree(node.children, childrenContainer);
+                        }
+                        if (node.tags && node.tags.length > 0) {
+                            node.tags.forEach(tag => {
+                                const tagDiv = document.createElement('div');
+                                tagDiv.classList.add('tag-item');
+                                tagDiv.style.marginLeft = '20px';
+
+                                const tagCheckbox = document.createElement('input');
+                                tagCheckbox.type = 'checkbox';
+                                tagCheckbox.id = `checkbox-${tag.id}`;
+                                tagCheckbox.dataset.id = tag.id;
+                                tagCheckbox.dataset.type = 'tag';
+                                tagCheckbox.checked = tag.checked;
+                                tagDiv.appendChild(tagCheckbox);
+
+                                const tagLabel = document.createElement('label');
+                                tagLabel.htmlFor = `checkbox-${tag.id}`;
+                                tagLabel.textContent = tag.name;
+                                tagDiv.appendChild(tagLabel);
+
+                                childrenContainer.appendChild(tagDiv);
+
+                                tagCheckbox.addEventListener('change', (event) => {
+                                    console.log(`DEBUG (Frontend - Checkbox Change Event): Tag ID: ${tag.id}, New Checked State: ${event.target.checked}`);
+                                    updateTagCheckedState(tag.id, event.target.checked, 'tag');
+                                    console.log(`DEBUG (Frontend): Tag ${tag.name} (ID: ${tag.id}) checked state after update:`, node.checked); // Check updated state
+                                    console.log(`DEBUG (Frontend): Current allTagsData state after update:`, allTagsData); // Check global state
+                                });
+                            });
+                        }
+                        itemDiv.appendChild(childrenContainer);
+
+                        toggleIcon.addEventListener('click', () => {
+                            node.expanded = !node.expanded;
+                            childrenContainer.style.display = node.expanded ? 'block' : 'none';
+                            toggleIcon.innerHTML = node.expanded ? '&#9660;' : '&#9658;';
+                        });
+
+                        folderCheckbox.addEventListener('change', (event) => {
+                            console.log(`DEBUG (Frontend - Checkbox Change Event): Folder ID: ${node.id}, New Checked State: ${event.target.checked}`);
+                            updateTagCheckedState(node.id, event.target.checked, 'folder');
+                            checkAllChildren(node, event.target.checked);
+                        });
+
+                    } else if (node.type === 'tag') {
+                        const tagCheckbox = document.createElement('input');
+                        tagCheckbox.type = 'checkbox';
+                        tagCheckbox.id = `checkbox-${node.id}`;
+                        tagCheckbox.dataset.id = node.id;
+                        tagCheckbox.dataset.type = 'tag';
+                        tagCheckbox.checked = node.checked;
+                        itemDiv.appendChild(tagCheckbox);
+
+                        const tagLabel = document.createElement('label');
+                        tagLabel.htmlFor = `checkbox-${node.id}`;
+                        tagLabel.textContent = node.name;
+                        itemDiv.appendChild(tagLabel);
+
+                        tagCheckbox.addEventListener('change', (event) => {
+                            console.log(`DEBUG (Frontend - Checkbox Change Event): Tag ID: ${node.id}, New Checked State: ${event.target.checked}`);
+                            updateTagCheckedState(tag.id, event.target.checked, 'tag');
+                            console.log(`DEBUG (Frontend): Tag ${tag.name} (ID: ${tag.id}) checked state after update:`, node.checked); // Check updated state
+                            console.log(`DEBUG (Frontend): Current allTagsData state after update:`, allTagsData); // Check global state
+                        });
+                    }
+                    parentElement.appendChild(itemDiv);
+                });
+            }
+
+            /**
+             * Fetches people from the API, optionally filtered by selected tag IDs.
+             * @param {Array<string>} selectedTagIds - An array of tag IDs to filter by.
+             */
+            async function fetchPeople(selectedTagIds = []) {
+                try {
+                    // Store the currently applied tag IDs
+                    lastAppliedTagIds = selectedTagIds; 
+
+                    if (selectedTagIds.length === 0) {
+                        console.log('DEBUG (Frontend): No tags selected. Fetching all people.');
+                        showMessageBox('No tags selected. Displaying all people.', 'info');
+                        const response = await fetch('/api/people');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const people = await response.json();
+                        displayPeople(people);
+                        return;
+                    }
+
+                    const url = new URL('/api/people', window.location.origin); 
+                    selectedTagIds.forEach(id => {
+                        url.searchParams.append('tag_id', id);
+                    });
+
+                    console.log('DEBUG (Frontend): selectedTagIds array before fetch:', selectedTagIds);
+                    console.log('DEBUG (Frontend): Fetching people with URL:', url.toString());
+
+                    const response = await fetch(url.toString());
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const people = await response.json();
+                    displayPeople(people);
+                } catch (error) {
+                    console.error('Error fetching people:', error);
+                    peopleList.innerHTML = `<li>Error loading people: ${error.message}</li>`;
+                }
+            }
+
+            /**
+             * Fetches structured tags and folders from the API and renders them.
+             */
+            async function fetchTagsAndRender() {
+                tagLoadingIndicator.style.display = 'flex';
+                tagContentWrapper.innerHTML = '';
+                tagContentWrapper.style.display = 'none';
+
+                try {
+                    const response = await fetch('/api/tags');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    allTagsData = await response.json(); // THIS IS WHERE allTagsData IS POPULATED
+                    renderTagTree(allTagsData, tagContentWrapper); // Calling renderTagTree
+                    tagContentWrapper.style.display = 'block';
+                } catch (error) {
+                    console.error('Error fetching tags:', error);
+                    tagContentWrapper.innerHTML = '<p style="color: red;">Error loading tags.</p>';
+                    tagContentWrapper.style.display = 'block';
+                } finally {
+                    tagLoadingIndicator.style.display = 'none';
+                }
+            }
+
+
+            // --- INITIAL CALLS AND EVENT LISTENERS ---
+            fetchTagsAndRender(); // This is the initial call
+
+            applyFilterButton.addEventListener('click', () => {
+                const selectedTagIds = [];
+                collectSelectedTagIds(allTagsData, selectedTagIds);
+                console.log('DEBUG (Frontend): Tags collected from frontend:', selectedTagIds);
+                fetchPeople(selectedTagIds);
+            });
+
+            // "Select All" checkbox event listener
+            selectAllPeopleCheckbox.addEventListener('change', (event) => {
+                const isChecked = event.target.checked;
+                // Only select/deselect checkboxes that are NOT disabled
+                const checkboxes = peopleList.querySelectorAll('input[type="checkbox"]:not([disabled])');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                    // Manually trigger change event to update selectedPeopleForSms map
+                    const changeEvent = new Event('change');
+                    checkbox.dispatchEvent(changeEvent);
+                });
+            });
+
+
+            sendSmsButton.addEventListener('click', async () => {
+                // Get phone numbers directly from the selectedPeopleForSms map
+                const phoneNumbersToSend = Array.from(selectedPeopleForSms.values()).filter(num => num !== 'N/A');
+                const message = document.getElementById('message').value;
+
+                if (phoneNumbersToSend.length === 0) {
+                    showMessageBox('Please select at least one person with a valid phone number to send an SMS.', 'error');
+                    return;
+                }
+                if (!message) {
+                    showMessageBox('Please enter a message to send.', 'error');
+                    return;
+                }
+
+                try {
+                    // Join numbers with a comma for the 'to' field in the backend
+                    const response = await fetch('/api/send-sms', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ to: phoneNumbersToSend.join(','), message: message })
+                    });
+
+                    const data = await response.json();
+                    if (response.ok) {
+                        showMessageBox('SMS sent successfully!', 'success');
+                        // Clear message input
+                        document.getElementById('message').value = ''; 
+                        // Re-fetch people using the last applied filter to refresh the list
+                        // This will also clear the checkboxes as displayPeople clears selectedPeopleForSms
+                        fetchPeople(lastAppliedTagIds); 
+                    } else {
+                        showMessageBox(`Failed to send SMS: ${data.message}`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error sending SMS:', error);
+                    showMessageBox('Error sending SMS.', 'error');
+                }
+            });
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,272 @@
+/* public/style.css */
+
+/* --- General Body Styles --- */
+body {
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+    color: #333;
+    font-family: 'Lato', Arial, sans-serif; /* Consistent font for body text */
+}
+
+/* --- Styles for the Main Application Page (index.html) --- */
+body.app-body {
+    background-color: #f4f7f6; /* Light grey background for the app */
+}
+
+.container {
+    max-width: 1200px; /* Increased max-width for two columns */
+    margin: 30px auto;
+    padding: 20px 30px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+
+    display: flex; /* Use flexbox for layout */
+    gap: 30px; /* Space between columns */
+    flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+}
+
+.left-column {
+    flex: 2; /* Takes up 2 parts of available space */
+    min-width: 300px; /* Minimum width to prevent squishing */
+}
+
+.right-column {
+    flex: 1; /* Takes up 1 part of available space */
+    min-width: 280px; /* Minimum width for the tag filter */
+}
+
+
+/* --- Styles for Headings (used on both pages) --- */
+h1, h2 {
+    font-family: 'Playfair Display', serif; /* Consistent font for headings */
+    color: #2c3e50; /* Darker blue-grey */
+    text-align: center;
+    margin-bottom: 20px; /* Default margin for general h1/h2 */
+}
+
+/* --- Form Elements (used on index.html) --- */
+input[type="tel"],
+textarea,
+select {
+    width: calc(100% - 20px); /* Account for padding */
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1em;
+    box-sizing: border-box; /* Include padding in width */
+}
+
+textarea {
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 80px;
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    background-color: #3498db; /* Blue */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #2980b9; /* Darker blue on hover */
+}
+
+/* --- NEW STYLES FOR NESTED TAG FILTER --- */
+.tag-filter-container {
+    border: 1px solid #eee;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #fdfdfd;
+    max-height: 400px; /* Limit height */
+    overflow-y: auto; /* Add scroll if content overflows */
+    position: relative; /* For absolute positioning of loading indicator if needed */
+}
+
+.tag-content-wrapper {
+    /* This will hold the actual tags/folders, allowing the loading indicator to be a sibling */
+    display: block; /* Default to block, can be hidden by JS */
+}
+
+.tag-item {
+    margin-bottom: 5px;
+    padding: 3px 0;
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+    color: #333;
+    padding: 5px 0;
+}
+
+.folder-header:hover {
+    background-color: #f0f0f0;
+}
+
+.toggle-icon {
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    width: 15px; /* Ensure consistent width for icon */
+    text-align: center;
+}
+
+.folder-header input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.folder-children {
+    padding-left: 20px; /* Indent children */
+    border-left: 1px dashed #eee; /* Visual guide for nesting */
+    margin-left: 10px;
+}
+
+.tag-item input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+#applyFilterButton {
+    margin-top: 20px;
+    width: auto; /* Allow button to size based on content */
+    padding: 10px 25px;
+}
+
+/* Loading Indicator Styles */
+.loading-indicator {
+    display: flex; /* Changed from none to flex in JS to show */
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-size: 1.1em;
+    color: #555;
+    /* Optional: absolute positioning if you want it to overlay content */
+    /* position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8); */
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #3498db;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- END NEW STYLES --- */
+
+
+/* People List */
+#peopleList {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+#peopleList li {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 1.05em;
+    color: #555;
+}
+
+#peopleList li:last-child {
+    border-bottom: none;
+}
+
+
+/* --- Styles for the Login Page (login.html) --- */
+body.login-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(to bottom right, #f0f7f8, #e7f0f1); /* Subtle light blue-grey gradient */
+}
+
+.login-container {
+    background-color: #fff;
+    padding: 40px;
+    border-radius: 8px;
+    border-top: 5px solid #25B4D0; /* Accent color */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+}
+
+/* Harvest Church Logo specific styling */
+.logo {
+    max-width: 280px;
+    height: auto;
+    margin-bottom: 15px; /* Added controlled space below the logo */
+}
+
+/* Specific adjustment for h1 within the login container */
+.login-container h1 {
+    margin-top: 0px; /* Remove default top margin from h1 */
+}
+
+.login-container p {
+    margin-bottom: 30px;
+    color: #666;
+    line-height: 1.5;
+}
+.login-btn {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: #ffffff;
+    color: #333333;
+    text-decoration: none;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.login-btn:hover {
+    background-color: #f0f0f0;
+    border-color: #bbb;
+}
+.login-btn img {
+    vertical-align: middle;
+    margin-right: 10px;
+    width: 20px;
+    height: 20px;
+}
+
+/* --- Responsive adjustments --- */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column; /* Stack columns on small screens */
+        gap: 20px;
+    }
+    .container, .login-container {
+        margin: 20px;
+        padding: 15px;
+    }
+}

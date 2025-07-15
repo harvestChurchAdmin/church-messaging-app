@@ -1,63 +1,65 @@
 // server.js
 
-// 1. Import necessary modules
 const express = require('express');
+const app = express();
+const passport = require('passport');
+const session = require('express-session');
 const path = require('path');
-const apiRoutes = require('./routes/api-routes');
-const authRoutes = require('./routes/auth-routes'); // <-- ADD THIS LINE
-const passportSetup = require('./middleware/config/passport-setup'); // Assuming you import your passport setup
-const session = require('express-session'); // <-- Ensure this is imported for sessions
-const passport = require('passport'); // <-- Ensure this is imported
-
 require('dotenv').config();
 
-// 2. Initialize the Express application
-const app = express();
-const PORT = process.env.PORT || 3000;
+// Import routes and middleware
+const apiRoutes = require('./routes/api-routes');
+const authRoutes = require('./routes/auth-routes');
+const authCheck = require('./middleware/authCheck');
+// CORRECTED PATH: Ensure this path is correct based on where passport-setup.js is located
+require('./middleware/config/passport-setup'); 
 
-// 3. Middleware
+// Middleware setup
 app.use(express.json()); // For parsing application/json
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
+app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
 
-// Configure session middleware
-// IMPORTANT: In a production environment, you would use a more robust
-// session store (like connect-mongo or connect-pg-simple) instead of
-// the default in-memory store, which is not scalable or persistent.
+// Session middleware - IMPORTANT: Keep this before passport.initialize()
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'a very secret key', // Use a strong, unique secret from .env
+    secret: process.env.SESSION_SECRET || 'a_very_secret_key', // Use an env variable for secret
     resave: false,
     saveUninitialized: false,
-    cookie: {
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-        // secure: true // Uncomment in production with HTTPS
-    }
+    cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
 }));
 
-// Initialize Passport and session support
+// Passport initialization
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 4. API Routes
-app.use('/api', apiRoutes);
-app.use('/auth', authRoutes); // <-- ADD THIS LINE to mount your auth routes
+// Authentication routes (e.g., /auth/google, /auth/google/redirect)
+app.use('/auth', authRoutes);
 
-// 5. Basic Route for the Homepage
-app.get('/', (req, res) => {
+// Protected API routes
+// The authCheck middleware will run before any /api route.
+// If not authenticated, authCheck will handle the redirection/error.
+app.use('/api', authCheck, apiRoutes);
+
+// Main application route - PROTECTED
+// This ensures that the main page (index.html) is only served if authenticated.
+// This MUST come BEFORE app.use(express.static) for the root '/' to be protected.
+app.get('/', authCheck, (req, res) => {
+    // If authCheck passes, the user is authenticated, so send the main app page
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// A simple status endpoint to check if user is logged in (used by frontend)
-app.get('/status', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.send(`Logged in as: ${req.user.displayName}.`);
-    } else {
-        res.send('Not logged in.');
-    }
+// Serve static files *after* protected routes that might intercept the root.
+// This will serve CSS, client-side JS (like your index.html's script), images
+// directly when requested, but the initial '/' request will hit the GET '/' route first.
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Optional: Handle logout
+app.get('/logout', (req, res) => {
+    req.logout((err) => { // Passport's logout method
+        if (err) { return next(err); }
+        res.redirect('/'); // Redirect to homepage after logout
+    });
 });
 
-
-// 6. Start the server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    console.log('Press Ctrl+C to stop the server');
 });

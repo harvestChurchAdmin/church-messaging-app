@@ -5,7 +5,13 @@ const passport = require('passport');
 // CHANGE THIS LINE:
 // const { isAuthenticated } = require('../middleware/authCheck');
 const isAuthenticated = require('../middleware/authCheck'); // <-- CORRECTED IMPORT
+const path = require('path');
 
+// Auth login route
+router.get('/login', (req, res) => {
+    // Change this line to send the login.html file
+    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+});
 // --- Google OAuth Routes ---
 
 // 1. Authentication Login Route

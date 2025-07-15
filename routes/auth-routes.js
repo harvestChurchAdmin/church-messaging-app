@@ -2,16 +2,15 @@
 
 const router = require('express').Router();
 const passport = require('passport');
-// CHANGE THIS LINE:
-// const { isAuthenticated } = require('../middleware/authCheck');
-const isAuthenticated = require('../middleware/authCheck'); // <-- CORRECTED IMPORT
-const path = require('path');
+const authCheck = require('../middleware/authCheck'); // Import authCheck if needed for other routes
+const path = require('path'); // Still needed for path.join if other routes use it
 
-// Auth login route
-router.get('/login', (req, res) => {
-    // Change this line to send the login.html file
-    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
-});
+// The /auth/login route is now handled directly by server.js at the /login path.
+// This route is removed to avoid conflict and ensure consistent logo injection.
+// router.get('/login', (req, res) => {
+//     res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+// });
+
 // --- Google OAuth Routes ---
 
 // 1. Authentication Login Route
@@ -29,13 +28,12 @@ router.get('/google/callback', passport.authenticate('google'), (req, res) => {
 router.get('/logout', (req, res, next) => {
     req.logout((err) => {
         if (err) { return next(err); }
-        res.redirect('/');
+        res.redirect('/login'); // Redirect to the main login page after logout
     });
 });
 
 // Example of a protected route (e.g., a profile page)
-// NOW USING isAuthenticated
-router.get('/profile', isAuthenticated, (req, res) => {
+router.get('/profile', authCheck, (req, res) => {
     res.send(`Welcome to your profile, ${req.user.displayName || 'User'}!`);
 });
 

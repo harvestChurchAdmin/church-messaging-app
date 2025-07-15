@@ -4,18 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messenger - Login</title>
+    <!-- Google Fonts for styling -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css"> </head>
+    <link rel="stylesheet" href="/style.css"> <!-- Link to the shared stylesheet -->
+</head>
 <body class="login-body">
     <div class="login-container">
-        <img src="https://tithely-media-prod.s3.us-west-1.wasabisys.com/703124/Dark.png" alt="Harvest Church Nanaimo Logo" class="logo">
+        <!-- Application Logo: This image tag will have its src dynamically set by server.js -->
+        <img id="appLogo" src="{{APP_LOGO_URL}}" alt="Application Logo" class="logo">
         <h1>Welcome</h1>
         <p>Please log in with your Harvest Church account to access the messaging application.</p>
         <a href="/auth/google" class="login-btn">
+            <!-- Google logo -->
             <img src="https://img.icons8.com/color/48/000000/google-logo.png" alt="Google Logo">
             Login with Google
         </a>
     </div>
+
+    <!-- The client-side script for setting appLogo.src is removed, as server.js now handles this directly. -->
 </body>
 </html>

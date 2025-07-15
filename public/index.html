@@ -12,9 +12,11 @@
 <body class="app-body">
     <div class="container">
         <div class="left-column">
+            <!-- Harvest Church Logo on Index Page -->
+            <!-- Application Logo: This image tag will have its src dynamically set by server.js -->
+            <img id="appLogo" src="{{APP_LOGO_URL}}" alt="Application Logo" class="logo">
             <!-- SMS Message Section - Stays at top of left column -->
             <h1>Send SMS Message</h1>
-            <!-- Removed the phone number input box as per request -->
             <textarea id="message" placeholder="Enter your message"></textarea>
             <button id="sendSms">Send SMS</button>
 
@@ -57,10 +59,13 @@
             const tagContentWrapper = tagFilterContainer.querySelector('.tag-content-wrapper');
             const sendSmsButton = document.getElementById('sendSms');
             const selectAllPeopleCheckbox = document.getElementById('selectAllPeopleCheckbox');
+            const appLogo = document.getElementById('appLogo'); // Get the logo element
 
             let allTagsData = []; // Stores the full tag tree for state management
             let selectedPeopleForSms = new Map(); // Stores {personId: phoneNumber} for selected people
             let lastAppliedTagIds = []; // Stores the tag IDs from the last applied filter
+
+            // Relying solely on server-side injection for appLogo.src
 
 
             // --- ALL FUNCTION DECLARATIONS GO HERE (after global variables, before initial calls) ---
@@ -90,12 +95,9 @@
             function updateTagCheckedState(id, checked, type, nodes) {
                 nodes = nodes || allTagsData; // Ensure nodes is always an array
 
-                console.log(`DEBUG (Frontend - updateTagCheckedState): Attempting to update ID: ${id}, Checked: ${checked}, Type: ${type}`);
-
                 for (const node of nodes) {
                     if (node.id === id && node.type === type) {
                         node.checked = checked;
-                        console.log(`DEBUG (Frontend - updateTagCheckedState): Successfully updated ${type} ${node.name} (ID: ${node.id}) to checked: ${node.checked}`);
                         return true; // Found and updated
                     }
                     if (node.children && node.children.length > 0) {
@@ -107,13 +109,11 @@
                         for (const tag of node.tags) {
                             if (tag.id === id) {
                                 tag.checked = checked;
-                                console.log(`DEBUG (Frontend - updateTagCheckedState): Successfully updated tag ${tag.name} (ID: ${tag.id}) to checked: ${tag.checked}`);
                                 return true; // Found and updated
                             }
                         }
                     }
                 }
-                console.log(`DEBUG (Frontend - updateTagCheckedState): Could not find ${type} with ID: ${id} in current branch.`);
                 return false; // Not found
             }
 
@@ -203,7 +203,8 @@
             function displayPeople(people) {
                 peopleList.innerHTML = ''; // Clear existing list
                 selectedPeopleForSms.clear(); // Clear previously selected people for SMS
-                selectAllPeopleCheckbox.checked = false; // Reset select all checkbox
+                selectAllPeopleCheckbox.checked = false; 
+                selectAllPeopleCheckbox.disabled = true; 
 
                 if (people.length === 0) {
                     peopleList.innerHTML = '<li>No people found for the selected tags.</li>';
@@ -216,8 +217,6 @@
                 selectAllPeopleCheckbox.disabled = false;
 
                 people.forEach(person => {
-                    console.log('DEBUG (Frontend - displayPeople): Person object received:', person); // NEW DEBUG LOG for person object
-
                     const li = document.createElement('li');
                     li.classList.add('person-item'); // Add a class for potential styling
 
@@ -248,7 +247,7 @@
                             selectedPeopleForSms.delete(personId);
                         }
                         // Update selectAllPeopleCheckbox state
-                        updateSelectAllCheckboxState();
+                        updateSelectAllCheckboxState(); 
                     });
 
                     const label = document.createElement('label');
@@ -267,7 +266,7 @@
             /**
              * Updates the state of the "Select All" checkbox based on individual checkboxes.
              */
-            function updateSelectAllCheckboxState() {
+            function updateSelectAllCheckboxState() { 
                 // Only consider checkboxes that are not disabled
                 const visibleEnabledCheckboxes = Array.from(peopleList.querySelectorAll('input[type="checkbox"]:not([disabled])'));
                 const checkedEnabledCheckboxes = Array.from(peopleList.querySelectorAll('input[type="checkbox"]:checked:not([disabled])'));
@@ -336,7 +335,6 @@
                                 tagCheckbox.id = `checkbox-${tag.id}`;
                                 tagCheckbox.dataset.id = tag.id;
                                 tagCheckbox.dataset.type = 'tag';
-                                tagCheckbox.checked = tag.checked;
                                 tagDiv.appendChild(tagCheckbox);
 
                                 const tagLabel = document.createElement('label');
@@ -347,10 +345,7 @@
                                 childrenContainer.appendChild(tagDiv);
 
                                 tagCheckbox.addEventListener('change', (event) => {
-                                    console.log(`DEBUG (Frontend - Checkbox Change Event): Tag ID: ${tag.id}, New Checked State: ${event.target.checked}`);
                                     updateTagCheckedState(tag.id, event.target.checked, 'tag');
-                                    console.log(`DEBUG (Frontend): Tag ${tag.name} (ID: ${tag.id}) checked state after update:`, node.checked); // Check updated state
-                                    console.log(`DEBUG (Frontend): Current allTagsData state after update:`, allTagsData); // Check global state
                                 });
                             });
                         }
@@ -363,7 +358,6 @@
                         });
 
                         folderCheckbox.addEventListener('change', (event) => {
-                            console.log(`DEBUG (Frontend - Checkbox Change Event): Folder ID: ${node.id}, New Checked State: ${event.target.checked}`);
                             updateTagCheckedState(node.id, event.target.checked, 'folder');
                             checkAllChildren(node, event.target.checked);
                         });
@@ -383,10 +377,7 @@
                         itemDiv.appendChild(tagLabel);
 
                         tagCheckbox.addEventListener('change', (event) => {
-                            console.log(`DEBUG (Frontend - Checkbox Change Event): Tag ID: ${node.id}, New Checked State: ${event.target.checked}`);
                             updateTagCheckedState(tag.id, event.target.checked, 'tag');
-                            console.log(`DEBUG (Frontend): Tag ${tag.name} (ID: ${tag.id}) checked state after update:`, node.checked); // Check updated state
-                            console.log(`DEBUG (Frontend): Current allTagsData state after update:`, allTagsData); // Check global state
                         });
                     }
                     parentElement.appendChild(itemDiv);
@@ -403,7 +394,6 @@
                     lastAppliedTagIds = selectedTagIds; 
 
                     if (selectedTagIds.length === 0) {
-                        console.log('DEBUG (Frontend): No tags selected. Fetching all people.');
                         showMessageBox('No tags selected. Displaying all people.', 'info');
                         const response = await fetch('/api/people');
                         if (!response.ok) {
@@ -419,13 +409,10 @@
                         url.searchParams.append('tag_id', id);
                     });
 
-                    console.log('DEBUG (Frontend): selectedTagIds array before fetch:', selectedTagIds);
-                    console.log('DEBUG (Frontend): Fetching people with URL:', url.toString());
-
                     const response = await fetch(url.toString());
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                        }
                     const people = await response.json();
                     displayPeople(people);
                 } catch (error) {
@@ -466,7 +453,6 @@
             applyFilterButton.addEventListener('click', () => {
                 const selectedTagIds = [];
                 collectSelectedTagIds(allTagsData, selectedTagIds);
-                console.log('DEBUG (Frontend): Tags collected from frontend:', selectedTagIds);
                 fetchPeople(selectedTagIds);
             });
 

@@ -7,14 +7,14 @@ const authCheck = (req, res, next) => {
         
         // Explicitly check if the request path starts with '/api/'.
         // This ensures that only true API calls receive a JSON 401.
-        // All other requests (like the root '/') will be redirected to login.
-        if (req.path.startsWith('/api/')) { //
-            console.log('Detected API request for path:', req.path, '. Sending 401 Unauthorized.'); //
-            return res.status(401).json({ message: 'Unauthorized: Please log in.' }); //
+        // All other requests (like the root '/') will be redirected to the main login page.
+        if (req.path.startsWith('/api/')) {
+            console.log('Detected API request for path:', req.path, '. Sending 401 Unauthorized.');
+            return res.status(401).json({ message: 'Unauthorized: Please log in.' });
         } else {
-            // For all other routes (like '/', which serves index.html), redirect to login page
-            console.log('Detected page request for path:', req.path, '. Redirecting to login.'); //
-            return res.redirect('/auth/login'); //
+            // For all other routes (like '/', which serves index.html), redirect to the /login page
+            console.log('Detected page request for path:', req.path, '. Redirecting to /login.');
+            return res.redirect('/login'); // Redirect directly to the /login route handled by server.js
         }
     }
     // If authenticated, proceed to the next middleware/route handler

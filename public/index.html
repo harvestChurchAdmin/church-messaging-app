@@ -10,423 +10,396 @@
     <link rel="stylesheet" href="/style.css"> <!-- Link to the shared stylesheet -->
 </head>
 <body class="app-body">
+    <!-- Header for Logo and User Info -->
+    <header class="app-header">
+        <img id="appLogo" src="{{APP_LOGO_URL}}" alt="Application Logo" class="logo">
+        <div class="user-info-container">
+            <h2 id="userNameDisplay" class="user-info"></h2>
+            <h3 id="userEmailDisplay" class="user-info"></h3>
+            <button id="logoutButton" class="logout-button">Logout</button>
+        </div>
+    </header>
+
     <div class="container">
         <div class="left-column">
-            <!-- Harvest Church Logo on Index Page -->
-            <!-- Application Logo: This image tag will have its src dynamically set by server.js -->
-            <img id="appLogo" src="{{APP_LOGO_URL}}" alt="Application Logo" class="logo">
-            <!-- SMS Message Section - Stays at top of left column -->
-            <h1>Send SMS Message</h1>
-            <textarea id="message" placeholder="Enter your message"></textarea>
-            <button id="sendSms">Send SMS</button>
-
-            <!-- People List - Now in the left column, below SMS -->
-            <h2 class="mt-8">Filtered People</h2> <!-- Added margin-top for spacing -->
-            <div class="select-all-container">
-                <input type="checkbox" id="selectAllPeopleCheckbox">
-                <label for="selectAllPeopleCheckbox">Select All Visible People</label>
+            <!-- SMS Message Section -->
+            <div class="card sms-message-section">
+                <h1>Send SMS Message</h1>
+                <textarea id="message" placeholder="Enter your message" maxlength="160"></textarea>
+                <div id="charCount" class="char-count">160 characters remaining</div>
+                <button id="sendSms">Send SMS</button>
             </div>
-            <ul id="peopleList">
-                <!-- People data will be inserted here by JavaScript -->
-            </ul>
+
+            <!-- People List Section -->
+            <div class="card people-list-section">
+                <h2 class="mt-8">Filtered People</h2>
+                <div class="selection-controls" style="display: none;">
+                    <button id="selectAllVisible">Select All Visible</button>
+                    <button id="clearAllSelected">Clear All</button>
+                </div>
+                <div id="peopleList" class="people-list">
+                    <p>Apply a tag filter to see people.</p>
+                </div>
+                <div id="peopleLoadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    Loading people...
+                </div>
+            </div>
+
+            <!-- SMS History Section -->
+            <div class="card sms-history-section">
+                <h1 class="mt-8">SMS History</h1>
+                <div class="sms-history-controls">
+                    <button id="refreshSmsHistory">Refresh History</button>
+                </div>
+                <div class="sms-history-container">
+                    <table id="smsHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Recipient</th>
+                                <th>Sender</th>
+                                <th>Message</th>
+                                <th>Status</th>
+                                <th>Sent At</th>
+                                <th>Last Update</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="6">Loading SMS history...</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="smsHistoryLoading" class="loading-indicator" style="display: none;">
+                        <div class="spinner"></div>
+                        Loading SMS history...
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="right-column">
-            <!-- Breeze Church Management People & Tag Filtering - Moved to right column -->
-            <h2>Breeze Church Management Tags</h2>
-            <div>
-                <label>Filter by Tag:</label>
-                <div id="tagFilterContainer" class="tag-filter-container">
-                    <div id="tagLoadingIndicator" class="loading-indicator" style="display: none;">
+            <!-- Tag Filter Section -->
+            <div class="card tag-filter-section">
+                <h1>Filter People by Tags</h1>
+                <div id="tagFilter" class="tag-filter-container">
+                    <div id="tagLoadingIndicator" class="loading-indicator">
                         <div class="spinner"></div>
                         Loading tags...
                     </div>
-                    <!-- This div will hold the dynamically rendered tags and folders -->
-                    <div class="tag-content-wrapper"></div> 
+                    <div class="tag-content-wrapper" style="display: none;"></div>
                 </div>
                 <button id="applyFilterButton">Apply Tag Filter</button>
             </div>
         </div>
     </div>
 
+    <!-- Message box for user feedback -->
+    <div id="messageBox" class="message-box"></div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- GLOBAL VARIABLES (within DOMContentLoaded scope) - Declare first ---
-            const peopleList = document.getElementById('peopleList');
-            const tagFilterContainer = document.getElementById('tagFilterContainer');
-            const applyFilterButton = document.getElementById('applyFilterButton');
-            const tagLoadingIndicator = document.getElementById('tagLoadingIndicator');
-            const tagContentWrapper = tagFilterContainer.querySelector('.tag-content-wrapper');
+        // Store selected people's IDs and their full data for SMS sending
+        let selectedPeopleForSms = new Map(); // Map: personId -> personObject (including phone number and name)
+        let lastAppliedTagIds = []; // Stores the last set of tag IDs used for filtering people
+
+        // Global variable to store logged-in user's details
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const sendSmsButton = document.getElementById('sendSms');
-            const selectAllPeopleCheckbox = document.getElementById('selectAllPeopleCheckbox');
-            const appLogo = document.getElementById('appLogo'); // Get the logo element
+            const messageInput = document.getElementById('message');
+            const charCountDisplay = document.getElementById('charCount'); // Get character count element
+            const peopleListDiv = document.getElementById('peopleList');
+            const tagFilterDiv = document.getElementById('tagFilter');
+            const applyFilterButton = document.getElementById('applyFilterButton');
+            const clearAllSelectedButton = document.getElementById('clearAllSelected');
+            const selectAllVisibleButton = document.getElementById('selectAllVisible');
+            const smsHistoryTableBody = document.querySelector('#smsHistoryTable tbody');
+            const refreshSmsHistoryButton = document.getElementById('refreshSmsHistory');
+            const tagLoadingIndicator = document.getElementById('tagLoadingIndicator');
+            const tagContentWrapper = tagFilterDiv.querySelector('.tag-content-wrapper');
+            const peopleLoadingIndicator = document.getElementById('peopleLoadingIndicator');
+            const selectionControls = document.querySelector('.selection-controls');
+            const smsHistoryLoading = document.getElementById('smsHistoryLoading');
 
-            let allTagsData = []; // Stores the full tag tree for state management
-            let selectedPeopleForSms = new Map(); // Stores {personId: phoneNumber} for selected people
-            let lastAppliedTagIds = []; // Stores the tag IDs from the last applied filter
+            const MAX_SMS_CHARS = 160; // Define the maximum characters for a single SMS segment
 
-            // Relying solely on server-side injection for appLogo.src
-
-
-            // --- ALL FUNCTION DECLARATIONS GO HERE (after global variables, before initial calls) ---
-
-            // Custom message box function (replaces alert)
-            function showMessageBox(message, type = 'info') {
-                const messageBox = document.createElement('div');
-                messageBox.classList.add('message-box', type);
+            // Function to display messages to the user
+            function showMessageBox(message, type = 'info', duration = 3000) {
+                const messageBox = document.getElementById('messageBox');
                 messageBox.textContent = message;
-                document.body.appendChild(messageBox);
+                messageBox.className = `message-box ${type} show`;
 
-                // Automatically remove after a few seconds
                 setTimeout(() => {
-                    messageBox.remove();
-                }, 3000); // 3 seconds
+                    messageBox.classList.remove('show');
+                }, duration);
             }
 
-            /**
-             * Recursively updates the 'checked' state of a tag or folder within the allTagsData structure.
-             * This ensures the master data source reflects UI changes.
-             * @param {string} id - The ID of the tag or folder to update.
-             * @param {boolean} checked - The new checked state.
-             * @param {string} type - 'tag' or 'folder'
-             * @param {Array<Object>} nodes - The current level of nodes to search.
-             * @returns {boolean} - True if the node was found and updated.
-             */
-            function updateTagCheckedState(id, checked, type, nodes) {
-                nodes = nodes || allTagsData; // Ensure nodes is always an array
-
-                for (const node of nodes) {
-                    if (node.id === id && node.type === type) {
-                        node.checked = checked;
-                        return true; // Found and updated
+            // Function to fetch the logged-in user's details
+            async function fetchCurrentUser() {
+                try {
+                    const response = await fetch('/user'); 
+                    if (!response.ok) {
+                        if (response.status === 401 || response.status === 403) {
+                            window.location.href = '/login';
+                            return; 
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    if (node.children && node.children.length > 0) {
-                        if (updateTagCheckedState(id, checked, type, node.children)) {
-                            return true; // Found in children
-                        }
+                    currentUser = await response.json();
+                    if (currentUser && currentUser.displayName && currentUser.email) {
+                        document.getElementById('userNameDisplay').textContent = `Welcome, ${currentUser.displayName}`;
+                        document.getElementById('userEmailDisplay').textContent = currentUser.email;
+                    } else {
+                        console.warn('Current user data is incomplete or not available.');
+                        document.getElementById('userNameDisplay').textContent = 'Welcome!';
+                        document.getElementById('userEmailDisplay').textContent = 'Email not found.';
                     }
-                    if (node.tags && node.tags.length > 0 && type === 'tag') { 
-                        for (const tag of node.tags) {
-                            if (tag.id === id) {
-                                tag.checked = checked;
-                                return true; // Found and updated
-                            }
-                        }
+                } catch (error) {
+                    console.error('Error fetching current user:', error);
+                    showMessageBox('Failed to fetch user data. Please refresh.', 'error');
+                    if (error.message.includes('401') || error.message.includes('403')) {
+                        window.location.href = '/login';
                     }
-                }
-                return false; // Not found
-            }
-
-            /**
-             * Recursively checks/unchecks all children (sub-folders and tags) of a given node.
-             * @param {Object} node - The current folder node.
-             * @param {boolean} checked - The checked state to apply.
-             */
-            function checkAllChildren(node, checked) {
-                if (node.children) {
-                    node.children.forEach(child => {
-                        const checkbox = document.getElementById(`checkbox-${child.id}`);
-                        if (checkbox) {
-                            checkbox.checked = checked;
-                            updateTagCheckedState(child.id, checked, 'folder');
-                        }
-                        checkAllChildren(child, checked); // Recursively check sub-folders
-                    });
-                }
-                if (node.tags) {
-                    node.tags.forEach(tag => {
-                        const checkbox = document.getElementById(`checkbox-${tag.id}`);
-                        if (checkbox) {
-                            checkbox.checked = checked;
-                            updateTagCheckedState(tag.id, checked, 'tag');
-                        }
-                    });
                 }
             }
+            fetchCurrentUser(); // Fetch user data on page load
 
-            /**
-             * Recursively collects the IDs of all selected tags.
-             * @param {Array<Object>} nodes - An array of folder or tag nodes.
-             * @param {Array<string>} selectedIds - The array to populate with selected tag IDs.
-             */
-            function collectSelectedTagIds(nodes, selectedIds) {
-                nodes.forEach(node => {
-                    if (node.type === 'tag' && node.checked) {
-                        selectedIds.push(node.id);
-                    }
-                    if (node.children) {
-                        collectSelectedTagIds(node.children, selectedIds);
-                    }
-                    if (node.tags) {
-                        node.tags.forEach(tag => {
-                            if (tag.checked) {
-                                selectedIds.push(tag.id);
-                            }
-                        });
+            // Logout functionality
+            const logoutButton = document.getElementById('logoutButton');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', async () => {
+                    try {
+                        const response = await fetch('/auth/logout');
+                        if (response.ok) {
+                            window.location.href = '/login'; // Redirect to login page after successful logout
+                        } else {
+                            showMessageBox('Logout failed.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error during logout:', error);
+                        showMessageBox('Error during logout.', 'error');
                     }
                 });
             }
 
-            /**
-             * Extracts the mobile phone number from a person object based on the new payload structure.
-             * The phone data is expected within the 'details' object, under the field ID '1413026988',
-             * which is an array of phone entries, each with 'phone_number' and 'phone_type'.
-             * @param {Object} person - The person object from Breeze API.
-             * @returns {string} The mobile phone number, or 'N/A' if not found.
-             */
-            function getMobilePhoneNumber(person) {
-                // Access the 'details' object first, then the specific field ID '1413026988'.
-                // Ensure 'details' exists before trying to access its properties.
-                const phoneEntries = person.details && person.details['1413026988'];
+            // Helper function to format timestamps
+            function formatTimestamp(timestamp) {
+                if (!timestamp) return 'N/A';
+                const date = new Date(timestamp);
+                const options = {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                };
+                return date.toLocaleString('en-US', options);
+            }
 
+            // Function to fetch SMS history
+            async function fetchSmsHistory() {
+                smsHistoryTableBody.innerHTML = '<tr><td colspan="6"></td></tr>';
+                smsHistoryLoading.style.display = 'flex';
+
+                try {
+                    const response = await fetch('/api/sms-history');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const history = await response.json();
+                    displaySmsHistory(history);
+                } catch (error) {
+                    console.error('Error fetching SMS history:', error);
+                    showMessageBox('Failed to load SMS history.', 'error');
+                    smsHistoryTableBody.innerHTML = '<tr><td colspan="6" class="error">Failed to load SMS history.</td></tr>';
+                } finally {
+                    smsHistoryLoading.style.display = 'none';
+                }
+            }
+
+            // Function to display SMS history
+            function displaySmsHistory(history) {
+                smsHistoryTableBody.innerHTML = '';
+                if (history.length === 0) {
+                    smsHistoryTableBody.innerHTML = '<tr><td colspan="6">No SMS records found.</td></tr>';
+                    return;
+                }
+
+                history.forEach(record => {
+                    const row = smsHistoryTableBody.insertRow();
+                    row.insertCell().textContent = record.recipientName || record.toPhoneNumber;
+                    row.insertCell().textContent = record.senderName || record.senderUserId;
+                    row.insertCell().textContent = record.messageBody;
+                    row.insertCell().textContent = record.status;
+                    row.insertCell().textContent = formatTimestamp(record.createdAt);
+                    row.insertCell().textContent = formatTimestamp(record.updatedAt);
+
+                    if (record.status === 'delivered') {
+                        row.classList.add('status-delivered');
+                    } else if (record.status === 'failed' || record.status === 'undelivered') {
+                        row.classList.add('status-failed');
+                    } else if (record.status === 'queued' || record.status === 'sending' || record.status === 'sent') {
+                        row.classList.add('status-pending');
+                    }
+                });
+            }
+
+            // --- People List and Tag Filtering Functions ---
+
+            let allFetchedPeople = [];
+
+            function getPhoneNumber(person) {
+                const phoneEntries = person.details && person.details['1413026988'];
                 if (Array.isArray(phoneEntries)) {
-                    // Find the entry that specifically has 'phone_type' as 'mobile'
                     const mobileEntry = phoneEntries.find(entry => 
                         entry && entry.phone_type === 'mobile' && entry.phone_number
                     );
                     if (mobileEntry) {
                         return mobileEntry.phone_number;
                     }
-                    // If no 'mobile' type, try to return the first available number
-                    // (e.g., home or work phone if mobile is not present)
                     if (phoneEntries.length > 0 && phoneEntries[0].phone_number) {
                         return phoneEntries[0].phone_number;
                     }
                 }
-                return 'N/A';
+                return null;
             }
 
-            /**
-             * Displays the list of people in the UI with checkboxes, name, and phone.
-             * @param {Array<Object>} people - An array of person objects.
-             */
             function displayPeople(people) {
-                peopleList.innerHTML = ''; // Clear existing list
-                selectedPeopleForSms.clear(); // Clear previously selected people for SMS
-                selectAllPeopleCheckbox.checked = false; 
-                selectAllPeopleCheckbox.disabled = true; 
+                peopleListDiv.innerHTML = '';
+                selectedPeopleForSms.clear();
+                allFetchedPeople = people;
 
                 if (people.length === 0) {
-                    peopleList.innerHTML = '<li>No people found for the selected tags.</li>';
-                    // Ensure select all is disabled if no people
-                    selectAllPeopleCheckbox.disabled = true; 
+                    peopleListDiv.innerHTML = '<p>No people found for the selected tags.</p>';
+                    selectionControls.style.display = 'none';
                     return;
                 }
 
-                // The selectAllPeopleCheckbox should always be enabled if there are people
-                selectAllPeopleCheckbox.disabled = false;
+                selectionControls.style.display = 'flex';
 
                 people.forEach(person => {
-                    const li = document.createElement('li');
-                    li.classList.add('person-item'); // Add a class for potential styling
+                    const personDiv = document.createElement('div');
+                    personDiv.className = 'person-item';
+                    const fullName = `${person.first_name || ''} ${person.last_name || ''}`.trim();
+                    const phoneNumber = getPhoneNumber(person);
 
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = `person-checkbox-${person.id}`;
-                    checkbox.value = person.id; // Store person ID in value
-                    
-                    const phoneNumber = getMobilePhoneNumber(person);
-                    checkbox.dataset.phoneNumber = phoneNumber; // Store phone number in dataset
+                    personDiv.innerHTML = `
+                        <input type="checkbox" id="person-${person.id}" value="${person.id}" ${phoneNumber ? '' : 'disabled'}>
+                        <label for="person-${person.id}">${fullName} ${phoneNumber ? `(${phoneNumber})` : ' (No Mobile Number)'}</label>
+                    `;
 
-                    let labelText = `${person.first_name || ''} ${person.last_name || ''}`.trim();
-
-                    if (phoneNumber === 'N/A') {
-                        checkbox.disabled = true; // Disable checkbox if no mobile number
-                        labelText += ' (No Mobile Number)';
-                    } else {
-                        labelText += ` (${phoneNumber})`;
+                    const checkbox = personDiv.querySelector('input[type="checkbox"]');
+                    if (!checkbox.disabled) {
+                        checkbox.addEventListener('change', (event) => {
+                            if (event.target.checked) {
+                                selectedPeopleForSms.set(person.id, {
+                                    id: person.id,
+                                    name: fullName,
+                                    phoneNumber: phoneNumber
+                                });
+                            } else {
+                                selectedPeopleForSms.delete(person.id);
+                            }
+                        });
                     }
-
-                    // Add event listener for selecting people for SMS
-                    checkbox.addEventListener('change', (event) => {
-                        const personId = event.target.value;
-                        const number = event.target.dataset.phoneNumber;
-                        if (event.target.checked) {
-                            selectedPeopleForSms.set(personId, number);
-                        } else {
-                            selectedPeopleForSms.delete(personId);
-                        }
-                        // Update selectAllPeopleCheckbox state
-                        updateSelectAllCheckboxState(); 
-                    });
-
-                    const label = document.createElement('label');
-                    label.htmlFor = `person-checkbox-${person.id}`;
-                    label.textContent = labelText;
-
-                    li.appendChild(checkbox);
-                    li.appendChild(label);
-                    peopleList.appendChild(li);
+                    peopleListDiv.appendChild(personDiv);
                 });
-
-                // Ensure initial state of selectAllPeopleCheckbox is correct
-                updateSelectAllCheckboxState(); 
             }
 
-            /**
-             * Updates the state of the "Select All" checkbox based on individual checkboxes.
-             */
-            function updateSelectAllCheckboxState() { 
-                // Only consider checkboxes that are not disabled
-                const visibleEnabledCheckboxes = Array.from(peopleList.querySelectorAll('input[type="checkbox"]:not([disabled])'));
-                const checkedEnabledCheckboxes = Array.from(peopleList.querySelectorAll('input[type="checkbox"]:checked:not([disabled])'));
+            async function fetchPeople(tagIds = []) {
+                peopleListDiv.innerHTML = '<p>Loading people...</p>';
+                peopleLoadingIndicator.style.display = 'flex';
+                selectionControls.style.display = 'none';
 
-                if (visibleEnabledCheckboxes.length > 0 && visibleEnabledCheckboxes.length === checkedEnabledCheckboxes.length) {
-                    selectAllPeopleCheckbox.checked = true;
-                } else {
-                    selectAllPeopleCheckbox.checked = false;
+                try {
+                    const queryParams = tagIds.length > 0 ? `?${tagIds.map(id => `tag_id=${id}`).join('&')}` : '';
+                    const response = await fetch(`/api/people${queryParams}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const people = await response.json();
+                    displayPeople(people);
+                    lastAppliedTagIds = tagIds;
+                } catch (error) {
+                    console.error('Error fetching people:', error);
+                    peopleListDiv.innerHTML = '<p class="error">Failed to load people. Please try again.</p>';
+                    selectionControls.style.display = 'none';
+                } finally {
+                    peopleLoadingIndicator.style.display = 'none';
                 }
             }
 
+            // Function to display nested tags and folders
+            function displayTags(tagTree, parentElement) {
+                tagContentWrapper.innerHTML = '';
+                tagContentWrapper.style.display = 'block';
 
-            /**
-             * Recursively renders the tag tree (folders and tags) into the DOM.
-             * This function must be defined BEFORE fetchTagsAndRender.
-             * @param {Array<Object>} nodes - An array of folder or tag nodes.
-             * @param {HTMLElement} parentElement - The DOM element to append nodes to.
-             */
-            function renderTagTree(nodes, parentElement) {
-                nodes.forEach(node => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.classList.add('tag-item');
-                    itemDiv.style.marginLeft = `${node.type === 'tag' ? 20 : 0}px`; 
+                tagTree.forEach(node => {
+                    const nodeDiv = document.createElement('div');
+                    nodeDiv.className = `tag-node ${node.type}`;
 
                     if (node.type === 'folder') {
                         const folderHeader = document.createElement('div');
-                        folderHeader.classList.add('folder-header');
-                        
-                        const toggleIcon = document.createElement('span');
-                        toggleIcon.classList.add('toggle-icon');
-                        toggleIcon.innerHTML = node.expanded ? '&#9660;' : '&#9658;';
-                        folderHeader.appendChild(toggleIcon);
-
-                        const folderCheckbox = document.createElement('input');
-                        folderCheckbox.type = 'checkbox';
-                        folderCheckbox.id = `checkbox-${node.id}`;
-                        folderCheckbox.dataset.id = node.id;
-                        folderCheckbox.dataset.type = 'folder';
-                        folderCheckbox.checked = node.checked;
-                        folderHeader.appendChild(folderCheckbox);
-
-                        const folderLabel = document.createElement('label');
-                        folderLabel.htmlFor = `checkbox-${node.id}`;
-                        folderLabel.textContent = node.name;
-                        folderHeader.appendChild(folderLabel);
-                        
-                        itemDiv.appendChild(folderHeader);
+                        folderHeader.className = 'folder-header';
+                        folderHeader.innerHTML = `
+                            <span class="folder-toggle ${node.expanded ? 'expanded' : ''}">▶</span>
+                            <span>${node.name}</span>
+                        `;
+                        nodeDiv.appendChild(folderHeader);
 
                         const childrenContainer = document.createElement('div');
-                        childrenContainer.classList.add('folder-children');
-                        if (!node.expanded) {
+                        childrenContainer.className = 'folder-children';
+                        if (node.expanded) {
+                            childrenContainer.style.display = 'block';
+                        } else {
                             childrenContainer.style.display = 'none';
                         }
-                        
-                        if (node.children && node.children.length > 0) {
-                            renderTagTree(node.children, childrenContainer);
-                        }
-                        if (node.tags && node.tags.length > 0) {
-                            node.tags.forEach(tag => {
-                                const tagDiv = document.createElement('div');
-                                tagDiv.classList.add('tag-item');
-                                tagDiv.style.marginLeft = '20px';
+                        nodeDiv.appendChild(childrenContainer);
 
-                                const tagCheckbox = document.createElement('input');
-                                tagCheckbox.type = 'checkbox';
-                                tagCheckbox.id = `checkbox-${tag.id}`;
-                                tagCheckbox.dataset.id = tag.id;
-                                tagCheckbox.dataset.type = 'tag';
-                                tagDiv.appendChild(tagCheckbox);
-
-                                const tagLabel = document.createElement('label');
-                                tagLabel.htmlFor = `checkbox-${tag.id}`;
-                                tagLabel.textContent = tag.name;
-                                tagDiv.appendChild(tagLabel);
-
-                                childrenContainer.appendChild(tagDiv);
-
-                                tagCheckbox.addEventListener('change', (event) => {
-                                    updateTagCheckedState(tag.id, event.target.checked, 'tag');
-                                });
-                            });
-                        }
-                        itemDiv.appendChild(childrenContainer);
-
-                        toggleIcon.addEventListener('click', () => {
+                        folderHeader.querySelector('.folder-toggle').addEventListener('click', () => {
                             node.expanded = !node.expanded;
+                            folderHeader.querySelector('.folder-toggle').classList.toggle('expanded', node.expanded);
                             childrenContainer.style.display = node.expanded ? 'block' : 'none';
-                            toggleIcon.innerHTML = node.expanded ? '&#9660;' : '&#9658;';
                         });
 
-                        folderCheckbox.addEventListener('change', (event) => {
-                            updateTagCheckedState(node.id, event.target.checked, 'folder');
-                            checkAllChildren(node, event.target.checked);
+                        node.tags.forEach(tag => {
+                            const tagItemDiv = document.createElement('div');
+                            tagItemDiv.className = 'tag-item';
+                            tagItemDiv.innerHTML = `
+                                <input type="checkbox" id="tag-${tag.id}" value="${tag.id}" ${tag.checked ? 'checked' : ''}>
+                                <label for="tag-${tag.id}">${tag.name}</label>
+                            `;
+                            childrenContainer.appendChild(tagItemDiv);
+
+                            tagItemDiv.querySelector('input[type="checkbox"]').addEventListener('change', () => {
+                                tag.checked = !tag.checked;
+                            });
                         });
 
+                        if (node.children && node.children.length > 0) {
+                            displayTags(node.children, childrenContainer);
+                        }
                     } else if (node.type === 'tag') {
-                        const tagCheckbox = document.createElement('input');
-                        tagCheckbox.type = 'checkbox';
-                        tagCheckbox.id = `checkbox-${node.id}`;
-                        tagCheckbox.dataset.id = node.id;
-                        tagCheckbox.dataset.type = 'tag';
-                        tagCheckbox.checked = node.checked;
-                        itemDiv.appendChild(tagCheckbox);
+                        const tagItemDiv = document.createElement('div');
+                        tagItemDiv.className = 'tag-item';
+                        tagItemDiv.innerHTML = `
+                            <input type="checkbox" id="tag-${node.id}" value="${node.id}" ${node.checked ? 'checked' : ''}>
+                            <label for="tag-${node.id}">${node.name}</label>
+                        `;
+                        nodeDiv.appendChild(tagItemDiv);
 
-                        const tagLabel = document.createElement('label');
-                        tagLabel.htmlFor = `checkbox-${node.id}`;
-                        tagLabel.textContent = node.name;
-                        itemDiv.appendChild(tagLabel);
-
-                        tagCheckbox.addEventListener('change', (event) => {
-                            updateTagCheckedState(tag.id, event.target.checked, 'tag');
+                        tagItemDiv.querySelector('input[type="checkbox"]').addEventListener('change', () => {
+                            node.checked = !node.checked;
                         });
                     }
-                    parentElement.appendChild(itemDiv);
+                    parentElement.appendChild(nodeDiv);
                 });
             }
 
-            /**
-             * Fetches people from the API, optionally filtered by selected tag IDs.
-             * @param {Array<string>} selectedTagIds - An array of tag IDs to filter by.
-             */
-            async function fetchPeople(selectedTagIds = []) {
-                try {
-                    // Store the currently applied tag IDs
-                    lastAppliedTagIds = selectedTagIds; 
-
-                    if (selectedTagIds.length === 0) {
-                        showMessageBox('No tags selected. Displaying all people.', 'info');
-                        const response = await fetch('/api/people');
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        const people = await response.json();
-                        displayPeople(people);
-                        return;
-                    }
-
-                    const url = new URL('/api/people', window.location.origin); 
-                    selectedTagIds.forEach(id => {
-                        url.searchParams.append('tag_id', id);
-                    });
-
-                    const response = await fetch(url.toString());
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                    const people = await response.json();
-                    displayPeople(people);
-                } catch (error) {
-                    console.error('Error fetching people:', error);
-                    peopleList.innerHTML = `<li>Error loading people: ${error.message}</li>`;
-                }
-            }
-
-            /**
-             * Fetches structured tags and folders from the API and renders them.
-             */
-            async function fetchTagsAndRender() {
+            let currentTagTree = [];
+            async function fetchTags() {
                 tagLoadingIndicator.style.display = 'flex';
-                tagContentWrapper.innerHTML = '';
                 tagContentWrapper.style.display = 'none';
 
                 try {
@@ -434,82 +407,155 @@
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    allTagsData = await response.json(); // THIS IS WHERE allTagsData IS POPULATED
-                    renderTagTree(allTagsData, tagContentWrapper); // Calling renderTagTree
-                    tagContentWrapper.style.display = 'block';
+                    currentTagTree = await response.json();
+                    displayTags(currentTagTree, tagContentWrapper);
                 } catch (error) {
                     console.error('Error fetching tags:', error);
-                    tagContentWrapper.innerHTML = '<p style="color: red;">Error loading tags.</p>';
+                    tagContentWrapper.innerHTML = '<p class="error">Failed to load tags. Please try again.</p>';
                     tagContentWrapper.style.display = 'block';
                 } finally {
                     tagLoadingIndicator.style.display = 'none';
                 }
             }
 
+            function getCheckedTagIds(nodes) {
+                let checkedIds = [];
+                nodes.forEach(node => {
+                    if (node.type === 'tag' && node.checked) {
+                        checkedIds.push(node.id);
+                    } else if (node.type === 'folder') {
+                        node.tags.forEach(tag => {
+                            if (tag.checked) {
+                                checkedIds.push(tag.id);
+                            }
+                        });
+                        if (node.children) {
+                            checkedIds = checkedIds.concat(getCheckedTagIds(node.children));
+                        }
+                    }
+                });
+                return checkedIds;
+            }
 
-            // --- INITIAL CALLS AND EVENT LISTENERS ---
-            fetchTagsAndRender(); // This is the initial call
+            function updatePeopleFilter() {
+                const checkedTagIds = getCheckedTagIds(currentTagTree);
+                if (checkedTagIds.length === 0) {
+                    peopleListDiv.innerHTML = '<p>No tags selected. Apply a tag filter to see people.</p>';
+                    selectionControls.style.display = 'none';
+                    return;
+                }
+                fetchPeople(checkedTagIds);
+            }
 
-            applyFilterButton.addEventListener('click', () => {
-                const selectedTagIds = [];
-                collectSelectedTagIds(allTagsData, selectedTagIds);
-                fetchPeople(selectedTagIds);
-            });
-
-            // "Select All" checkbox event listener
-            selectAllPeopleCheckbox.addEventListener('change', (event) => {
-                const isChecked = event.target.checked;
-                // Only select/deselect checkboxes that are NOT disabled
-                const checkboxes = peopleList.querySelectorAll('input[type="checkbox"]:not([disabled])');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = isChecked;
-                    // Manually trigger change event to update selectedPeopleForSms map
-                    const changeEvent = new Event('change');
-                    checkbox.dispatchEvent(changeEvent);
+            // "Clear All" button functionality
+            clearAllSelectedButton.addEventListener('click', () => {
+                selectedPeopleForSms.clear();
+                document.querySelectorAll('#peopleList input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = false;
                 });
             });
 
+            // "Select All Visible" button functionality
+            selectAllVisibleButton.addEventListener('click', () => {
+                document.querySelectorAll('#peopleList .person-item input[type="checkbox"]').forEach(checkbox => {
+                    const personId = checkbox.value;
+                    const person = allFetchedPeople.find(p => p.id === personId);
+                    const phoneNumber = getPhoneNumber(person);
 
+                    if (phoneNumber) {
+                        checkbox.checked = true;
+                        const fullName = `${person.first_name || ''} ${person.last_name || ''}`.trim();
+                        selectedPeopleForSms.set(person.id, {
+                            id: person.id,
+                            name: fullName,
+                            phoneNumber: phoneNumber
+                        });
+                    } else {
+                        checkbox.checked = false;
+                    }
+                });
+            });
+
+            // Send SMS button functionality
             sendSmsButton.addEventListener('click', async () => {
-                // Get phone numbers directly from the selectedPeopleForSms map
-                const phoneNumbersToSend = Array.from(selectedPeopleForSms.values()).filter(num => num !== 'N/A');
-                const message = document.getElementById('message').value;
+                const message = messageInput.value.trim();
+                const peopleToSend = Array.from(selectedPeopleForSms.values());
 
-                if (phoneNumbersToSend.length === 0) {
-                    showMessageBox('Please select at least one person with a valid phone number to send an SMS.', 'error');
+                if (peopleToSend.length === 0) {
+                    showMessageBox('Please select at least one person to send an SMS.', 'error');
                     return;
                 }
+
                 if (!message) {
                     showMessageBox('Please enter a message to send.', 'error');
                     return;
                 }
 
-                try {
-                    // Join numbers with a comma for the 'to' field in the backend
-                    const response = await fetch('/api/send-sms', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ to: phoneNumbersToSend.join(','), message: message })
-                    });
+                if (!currentUser || !currentUser.displayName) {
+                    showMessageBox('Sender information not available. Please log in again.', 'error');
+                    return;
+                }
 
-                    const data = await response.json();
-                    if (response.ok) {
-                        showMessageBox('SMS sent successfully!', 'success');
-                        // Clear message input
-                        document.getElementById('message').value = ''; 
-                        // Re-fetch people using the last applied filter to refresh the list
-                        // This will also clear the checkboxes as displayPeople clears selectedPeopleForSms
-                        fetchPeople(lastAppliedTagIds); 
-                    } else {
-                        showMessageBox(`Failed to send SMS: ${data.message}`, 'error');
+                try {
+                    for (const person of peopleToSend) {
+                        const phoneNumber = person.phoneNumber;
+                        const recipientName = person.name;
+                        const senderName = currentUser.displayName;
+
+                        const response = await fetch('/api/send-sms', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                to: phoneNumber,
+                                message: message,
+                                recipientName: recipientName,
+                                senderName: senderName
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (response.ok) {
+                            showMessageBox(`SMS sent to ${recipientName} successfully!`, 'success');
+                        } else {
+                            showMessageBox(`Failed to send SMS to ${recipientName}: ${data.message}`, 'error');
+                        }
                     }
+
+                    document.getElementById('message').value = '';
+                    selectedPeopleForSms.clear();
+                    document.querySelectorAll('#peopleList input[type="checkbox"]').forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    fetchSmsHistory(); // Refresh SMS history after sending
                 } catch (error) {
                     console.error('Error sending SMS:', error);
-                    showMessageBox('Error sending SMS.', 'error');
+                    showMessageBox('Error sending SMS to one or more recipients.', 'error');
                 }
             });
+
+            refreshSmsHistoryButton.addEventListener('click', fetchSmsHistory);
+            applyFilterButton.addEventListener('click', updatePeopleFilter);
+
+            // Update character count on input
+            messageInput.addEventListener('input', () => {
+                const charsRemaining = MAX_SMS_CHARS - messageInput.value.length;
+                charCountDisplay.textContent = `${charsRemaining} characters remaining`;
+                if (charsRemaining < 0) {
+                    charCountDisplay.style.color = 'red';
+                } else {
+                    charCountDisplay.style.color = ''; // Reset to default
+                }
+            });
+
+            // Initial character count display
+            messageInput.dispatchEvent(new Event('input'));
+
+            // Initial fetches on page load
+            fetchCurrentUser();
+            fetchTags();
+            fetchSmsHistory();
         });
     </script>
 </body>

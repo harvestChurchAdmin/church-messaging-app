@@ -3,7 +3,9 @@
 const express = require('express');
 const router = express.Router();
 const breezeApi = require('../services/breeze-api');
+const smsService = require('../services/sms-service'); // Import the new SMS service
 const authCheck = require('../middleware/authCheck'); // Corrected path to authCheck middleware
+const db = require('../utils/db'); // Import the SQLite database utility
 
 // Define the fields we want to request from the Breeze API for each person.
 const BASIC_PEOPLE_FIELDS = ['id', 'first_name', 'last_name']; 
@@ -12,9 +14,14 @@ const PHONE_FIELD_ID = '1413026988';
 // Helper function to recursively fetch tags for folders and their children
 async function fetchAndNestTags(folderNode, allFolders) {
     const tagsInCurrentFolder = await breezeApi.getTagsInFolder(folderNode.id);
-    tagsInCurrentFolder.forEach(tag => {
-        folderNode.tags.push({ ...tag, type: 'tag', checked: false });
-    });
+    // Ensure tagsInCurrentFolder is an array before using forEach
+    if (Array.isArray(tagsInCurrentFolder)) {
+        tagsInCurrentFolder.forEach(tag => {
+            folderNode.tags.push({ ...tag, type: 'tag', checked: false });
+        });
+    } else {
+        console.error(`[fetchAndNestTags] Expected tagsInCurrentFolder to be an array for folder ID ${folderNode.id}, but got:`, tagsInCurrentFolder);
+    }
 
     const childrenFolders = allFolders.filter(f => f.parent_id === folderNode.id);
     for (const childFolder of childrenFolders) {
@@ -68,23 +75,19 @@ router.get('/people', authCheck, async (req, res) => {
                 }
             }
             people = Array.from(uniquePeopleMap.values());
-            // console.log(`Successfully received and merged basic people data for ${people.length} unique people from selected tags.`); // Removed debug
+            console.log(`Successfully received and merged basic people data for ${people.length} unique people from selected tags.`);
         } else {
-            // console.log('No tags selected, fetching all people (basic fields).'); // Removed debug
+            console.log('No tags selected, fetching all people (basic fields).');
             people = await breezeApi.getPeople({ fields_json: basic_fields_json }); 
-            // console.log('Successfully received all basic people data from Breeze API (no tag filter applied).'); // Removed debug
+            console.log('Successfully received all basic people data from Breeze API (no tag filter applied).');
         }
 
         const detailedPeoplePromises = people.map(async (person) => {
             try {
-                // console.log(`Fetching detailed profile for person ID: ${person.id}`); // Removed debug
                 const detailedPersonResponse = await breezeApi.getPeopleById(person.id); 
                 
                 if (detailedPersonResponse && detailedPersonResponse.details) {
                     person.details = detailedPersonResponse.details;
-                    // console.log(`Merged details for person ID: ${person.id}`); // Removed debug
-                } else {
-                    // console.log(`No details found for person ID: ${person.id}`); // Removed debug
                 }
             } catch (detailError) {
                 console.error(`Error fetching detailed profile for ID ${person.id}:`, detailError.message);
@@ -93,12 +96,6 @@ router.get('/people', authCheck, async (req, res) => {
         });
 
         const peopleWithDetails = await Promise.all(detailedPeoplePromises);
-
-        // if (peopleWithDetails && peopleWithDetails.length > 0) { // Removed debug
-        //     console.log('First 2 people objects received (with details):', peopleWithDetails.slice(0, 2));
-        // } else {
-        //     console.log('No people data received or array is empty for given parameters.');
-        // }
 
         res.json(peopleWithDetails); 
 
@@ -112,6 +109,12 @@ router.get('/people', authCheck, async (req, res) => {
 router.get('/tags', authCheck, async (req, res) => {
     try {
         const folders = await breezeApi.getTagFolders(); 
+        
+        // IMPORTANT: Add check for 'folders' being an array before proceeding
+        if (!Array.isArray(folders)) {
+            console.error('[api-routes] breezeApi.getTagFolders() did not return an array. Received:', folders);
+            return res.status(500).json({ message: 'Failed to fetch tags: Invalid data format from Breeze API.', receivedData: folders });
+        }
 
         const tagTree = [];
         const folderMap = new Map(); 
@@ -131,8 +134,12 @@ router.get('/tags', authCheck, async (req, res) => {
         const topLevelFolders = folders.filter(f => f.parent_id === '0');
         for (const folder of topLevelFolders) {
             const folderNode = folderMap.get(folder.id);
-            await fetchAndNestTags(folderNode, folders); 
-            tagTree.push(folderNode);
+            if (folderNode) { // Ensure folderNode exists before processing
+                await fetchAndNestTags(folderNode, folders); 
+                tagTree.push(folderNode);
+            } else {
+                console.warn(`[api-routes] Top-level folder with ID ${folder.id} not found in folderMap.`);
+            }
         }
 
         const sortNodes = (nodes) => {
@@ -149,26 +156,54 @@ router.get('/tags', authCheck, async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching and structuring tags/folders in api-routes:', error);
-        res.status(500).json({ message: 'Failed to fetch and structure tags', error: error.message });
+        res.status(500).json({ message: 'Failed to fetch tags', error: error.message });
     }
 });
 
-// API route to send SMS (assuming you have Twilio setup)
+// API route to send SMS
 router.post('/send-sms', authCheck, async (req, res) => {
-    const { to, message } = req.body;
+    // Destructure new fields: recipientName and senderName
+    const { to, message, recipientName, senderName } = req.body; 
 
-    if (!to || !message) {
-        return res.status(400).json({ message: 'Phone number and message are required.' });
+    if (!to || !message || !recipientName || !senderName) { // Validate new fields
+        return res.status(400).json({ message: 'Phone number, message, recipient name, and sender name are required.' });
     }
 
     try {
-        const response = await breezeApi.sendSms(to, message); 
+        // Access the user ID from the authenticated request
+        const senderUserId = req.user.id; // Assuming req.user.id holds the authenticated user's ID
+        console.log(`[api-routes] Sending SMS. Sender User ID: ${senderUserId}, Sender Name: ${senderName}, Recipient Name: ${recipientName}`); // Debug log
+
+        // Use the new smsService to send the SMS, passing all required parameters
+        const response = await smsService.sendSms(to, message, senderUserId, recipientName, senderName); 
         console.log('SMS sending initiated. Response:', response); 
-        res.json({ message: 'SMS sent successfully', sids: response.sids });
+        
+        // Check the success property from the response object
+        if (response.success) {
+            res.json({ message: 'SMS sent successfully', sids: response.sids });
+        } else {
+            // If smsService.sendSms returns success: false, it means all individual messages failed.
+            res.status(500).json({ message: 'Failed to send SMS: All messages failed to initiate.', sids: response.sids });
+        }
     } catch (error) {
         console.error('Error sending SMS in api-routes:', error);
         res.status(500).json({ message: 'Failed to send SMS', error: error.message });
     }
 });
+
+// API route to get SMS history
+router.get('/sms-history', authCheck, (req, res) => {
+    try {
+        // Fetch all SMS records from the database, including new name fields
+        const records = db.getDb().prepare('SELECT * FROM sms_records ORDER BY createdAt DESC').all();
+        console.log(`Fetched ${records.length} SMS records from database.`);
+        res.json(records);
+    }
+    catch (error) {
+        console.error('Error fetching SMS history from database:', error.message);
+        res.status(500).json({ message: 'Failed to fetch SMS history', error: error.message });
+    }
+});
+
 
 module.exports = router;

@@ -124,7 +124,7 @@ async function getTagsInFolder(folderId) {
  * @param {string} message - The message content.
  * @returns {Promise<object>} A promise that resolves to the Twilio message object(s) or SIDs.
  */
-async function sendSms(to, message) {
+/* async function sendSms(to, message) {
     try {
         console.log(`Delegating SMS sending to twilio-service.js for numbers: ${to}`);
         // The twilioService.sendMessage function expects a single number for each call
@@ -157,12 +157,12 @@ async function sendSms(to, message) {
         console.error('Error in sendSms (breeze-api.js) when calling twilio-service:', error.message);
         throw error;
     }
-}
+} */
 
 module.exports = {
     getPeople,
     getPeopleById,
     getTagFolders,
     getTagsInFolder,
-    sendSms
+    //sendSms
 };

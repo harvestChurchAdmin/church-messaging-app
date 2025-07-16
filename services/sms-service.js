@@ -1,4 +1,4 @@
-// services/twilio-service.js
+// services/sms-service.js
 
 const twilio = require('twilio');
 require('dotenv').config(); // Ensure environment variables are loaded
@@ -25,12 +25,14 @@ const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
  * @param {string} toPhoneNumber - The recipient's phone number (e.g., '+1234567890'). Can be comma-separated.
  * @param {string} messageBody - The text content of the message.
  * @param {string} senderUserId - The ID of the user who sent the message (for logging purposes).
+ * @param {string} recipientName - The name of the recipient (e.g., "John Doe").
+ * @param {string} senderName - The name of the logged-in user who sent the message.
  * @returns {Promise<Object>} A promise that resolves to an object indicating success and SIDs.
  */
-async function sendMessage(toPhoneNumber, messageBody, senderUserId) {
+async function sendSms(toPhoneNumber, messageBody, senderUserId, recipientName, senderName) {
     // Validate inputs before proceeding
-    if (!toPhoneNumber || !messageBody || !senderUserId) {
-        throw new Error('Recipient phone number(s), message body, and sender user ID are required.');
+    if (!toPhoneNumber || !messageBody || !senderUserId || !recipientName || !senderName) {
+        throw new Error('Recipient phone number(s), message body, sender user ID, recipient name, and sender name are required.');
     }
 
     // Split comma-separated numbers and trim whitespace for individual sending
@@ -51,6 +53,9 @@ async function sendMessage(toPhoneNumber, messageBody, senderUserId) {
             // This URL will be called by Twilio when the message status changes
             const statusCallbackUrl = `${SERVER_BASE_URL}/twilio-status-callback`;
 
+            console.log(`[sms-service] Attempting to send message from ${TWILIO_PHONE_NUMBER} to ${number} (Recipient: ${recipientName}): "${messageBody}"`);
+            console.log(`[sms-service] Twilio Status Callback URL: ${statusCallbackUrl}`);
+
             const message = await client.messages.create({
                 body: messageBody,
                 from: TWILIO_PHONE_NUMBER,
@@ -60,18 +65,18 @@ async function sendMessage(toPhoneNumber, messageBody, senderUserId) {
             messageSid = message.sid;
             initialStatus = message.status; // Twilio's immediate status (e.g., 'queued')
 
-            console.log(`SMS sent successfully to ${number}. SID: ${message.sid}. Status: ${message.status}. Sent by user: ${senderUserId}`);
+            console.log(`[sms-service] SMS initiated successfully to ${number}. SID: ${message.sid}. Status: ${message.status}. Sent by user: ${senderUserId}`);
             
         } catch (singleSmsError) {
-            console.error(`Failed to send SMS to ${number}:`, singleSmsError.message);
+            console.error(`[sms-service] Failed to send SMS to ${number}:`, singleSmsError.message);
             initialStatus = 'failed_to_send'; // Custom status for internal sending failure
             errorMessage = singleSmsError.message;
             if (singleSmsError.code) {
-                console.error(`Twilio Error Code for ${number}: ${singleSmsError.code}`);
+                console.error(`[sms-service] Twilio Error Code for ${number}: ${singleSmsError.code}`);
                 errorCode = String(singleSmsError.code); // Store as string
             }
             if (singleSmsError.moreInfo) {
-                console.error(`Twilio More Info for ${number}: ${singleSmsError.moreInfo}`);
+                console.error(`[sms-service] Twilio More Info for ${number}: ${singleSmsError.moreInfo}`);
                 errorMessage = `${errorMessage} | More Info: ${singleSmsError.moreInfo}`;
             }
             // If messageSid is not available (e.g., Twilio API call failed completely), generate a pseudo-SID
@@ -86,10 +91,13 @@ async function sendMessage(toPhoneNumber, messageBody, senderUserId) {
                     senderUserId: senderUserId,
                     status: initialStatus,
                     errorCode: errorCode,
-                    errorMessage: errorMessage
+                    errorMessage: errorMessage,
+                    recipientName: recipientName, // NEW: Store recipient name
+                    senderName: senderName        // NEW: Store sender name
                 });
+                console.log(`[sms-service] SMS record inserted/updated for SID ${messageSid}.`);
             } catch (dbError) {
-                console.error(`CRITICAL: Failed to save SMS record to DB for SID ${messageSid}:`, dbError.message);
+                console.error(`[sms-service] CRITICAL: Failed to save SMS record to DB for SID ${messageSid}:`, dbError.message);
             }
         }
         return messageSid; // Return the SID (or pseudo-SID) for tracking
@@ -99,7 +107,7 @@ async function sendMessage(toPhoneNumber, messageBody, senderUserId) {
     const successfulSids = results.filter(sid => sid !== null && !sid.startsWith('failed-'));
 
     if (successfulSids.length > 0) {
-        console.log(`Successfully initiated sending for ${successfulSids.length} SMS messages.`);
+        console.log(`[sms-service] Successfully initiated sending for ${successfulSids.length} SMS messages.`);
         return { success: true, sids: successfulSids };
     } else {
         throw new Error('All SMS messages failed to initiate sending.');
@@ -107,5 +115,5 @@ async function sendMessage(toPhoneNumber, messageBody, senderUserId) {
 }
 
 module.exports = {
-    sendMessage
+    sendSms // Export the sendSms function
 };

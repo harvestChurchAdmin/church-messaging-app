@@ -8,6 +8,9 @@ const path = require('path');
 require('dotenv').config(); // Load environment variables from .env
 const fs = require('fs'); // Import file system module for reading HTML
 
+// Import the SQLite database utility
+const db = require('./utils/db'); // Ensure this path is correct
+
 // Import routes and middleware
 const apiRoutes = require('./routes/api-routes');
 const authRoutes = require('./routes/auth-routes');
@@ -71,6 +74,48 @@ app.get('/login', (req, res) => {
     res.setHeader('Expires', '0');
 
     res.send(loginHtml);
+});
+
+// --- NEW: User Info Endpoint ---
+// This endpoint provides the currently logged-in user's details to the frontend.
+app.get('/user', authCheck, (req, res) => {
+    // req.user is populated by Passport's deserializeUser
+    if (req.user) {
+        res.json({
+            id: req.user.id,
+            displayName: req.user.displayName,
+            email: req.user.email || 'N/A' // Assuming email might be available from profile
+        });
+    } else {
+        res.status(401).json({ message: 'User not authenticated.' });
+    }
+});
+
+
+// --- Twilio Status Callback Endpoint ---
+// This endpoint receives updates from Twilio about message status.
+// It must be publicly accessible for Twilio to send callbacks.
+// Twilio sends application/x-www-form-urlencoded data, so we use express.urlencoded() middleware for this specific route.
+app.post('/twilio-status-callback', express.urlencoded({ extended: true }), (req, res) => {
+    const { MessageSid, MessageStatus, To, From, ApiVersion, AccountSid, ErrorCode, ErrorMessage } = req.body;
+
+    console.log(`[Twilio Callback] Received: SID=${MessageSid}, Status=${MessageStatus}, To=${To}, From=${From}`);
+    console.log(`[Twilio Callback] Full body:`, req.body); // Log full body for debugging
+
+    if (!MessageSid || !MessageStatus) {
+        console.warn('[Twilio Callback] Received incomplete Twilio status callback. Missing SID or Status.');
+        return res.status(400).send('Missing required parameters.');
+    }
+
+    try {
+        // Update the SMS record in the SQLite database
+        db.updateSmsStatus(MessageSid, MessageStatus, ErrorCode, ErrorMessage);
+        console.log(`[Twilio Callback] Database updated for SID ${MessageSid} with status ${MessageStatus}.`);
+        res.status(200).send('Callback received and processed.');
+    } catch (error) {
+        console.error(`[Twilio Callback] Error processing Twilio status callback for SID ${MessageSid}:`, error.message);
+        res.status(500).send('Error processing callback.');
+    }
 });
 
 

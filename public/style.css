@@ -11,201 +11,86 @@ body {
 
 /* --- Styles for the Main Application Page (index.html) --- */
 body.app-body {
-    background-color: #f4f7f6; /* Light grey background for the app */
+    background-color: #e9eff3; /* Slightly darker grey background for the app to make cards pop more */
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between; /* Pushes logo left, user info right */
+    align-items: center;
+    padding: 15px 30px; /* Add some padding */
+    background-color: #ffffff; /* White background for header */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    margin-bottom: 20px; /* Space below header */
 }
 
 .container {
     max-width: 1200px; /* Increased max-width for two columns */
-    margin: 30px auto;
-    padding: 20px 30px;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin: 0px auto 30px auto; /* Adjusted top margin for header */
+    padding: 30px; /* Increased padding for better separation from edges */
+    background-color: #e9eff3; /* Match body background to blend more, but still allow cards to stand out */
+    border-radius: 8px; /* Keep outer border radius */
+    box-shadow: none; /* Remove container shadow, sections will have it */
 
     display: flex; /* Use flexbox for layout */
     gap: 30px; /* Space between columns */
     flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+    position: relative; /* For absolute positioning of user info (though now in header) */
 }
 
 .left-column {
     flex: 2; /* Takes up 2 parts of available space */
     min-width: 300px; /* Minimum width to prevent squishing */
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Space between sections in the column */
 }
 
 .right-column {
     flex: 1; /* Takes up 1 part of available space */
-    min-width: 280px; /* Minimum width for the tag filter */
-}
-
-
-/* --- Styles for Headings (used on both pages) --- */
-h1, h2 {
-    font-family: 'Playfair Display', serif; /* Consistent font for headings */
-    color: #2c3e50; /* Darker blue-grey */
-    text-align: center;
-    margin-bottom: 20px; /* Default margin for general h1/h2 */
-}
-
-/* --- Form Elements (used on index.html) --- */
-input[type="tel"],
-textarea,
-select {
-    width: calc(100% - 20px); /* Account for padding */
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 1em;
-    box-sizing: border-box; /* Include padding in width */
-}
-
-textarea {
-    resize: vertical; /* Allow vertical resizing */
-    min-height: 80px;
-}
-
-button {
-    display: block;
-    width: 100%;
-    padding: 12px 20px;
-    background-color: #3498db; /* Blue */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 1.1em;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-button:hover {
-    background-color: #2980b9; /* Darker blue on hover */
-}
-
-/* --- NEW STYLES FOR NESTED TAG FILTER --- */
-.tag-filter-container {
-    border: 1px solid #eee;
-    border-radius: 5px;
-    padding: 10px;
-    margin-bottom: 15px;
-    background-color: #fdfdfd;
-    max-height: 400px; /* Limit height */
-    overflow-y: auto; /* Add scroll if content overflows */
-    position: relative; /* For absolute positioning of loading indicator if needed */
-}
-
-.tag-content-wrapper {
-    /* This will hold the actual tags/folders, allowing the loading indicator to be a sibling */
-    display: block; /* Default to block, can be hidden by JS */
-}
-
-.tag-item {
-    margin-bottom: 5px;
-    padding: 3px 0;
-}
-
-.folder-header {
+    min-width: 300px; /* Minimum width to prevent squishing */
     display: flex;
-    align-items: center;
-    cursor: pointer;
-    font-weight: bold;
-    color: #333;
-    padding: 5px 0;
+    flex-direction: column;
+    gap: 20px; /* Space between sections in the column */
 }
 
-.folder-header:hover {
-    background-color: #f0f0f0;
-}
-
-.toggle-icon {
-    margin-right: 8px;
-    transition: transform 0.2s ease;
-    display: inline-block;
-    width: 15px; /* Ensure consistent width for icon */
-    text-align: center;
-}
-
-.folder-header input[type="checkbox"] {
-    margin-right: 8px;
-}
-
-.folder-children {
-    padding-left: 20px; /* Indent children */
-    border-left: 1px dashed #eee; /* Visual guide for nesting */
-    margin-left: 10px;
-}
-
-.tag-item input[type="checkbox"] {
-    margin-right: 8px;
-}
-
-#applyFilterButton {
-    margin-top: 20px;
-    width: auto; /* Allow button to size based on content */
-    padding: 10px 25px;
-}
-
-/* Loading Indicator Styles */
-.loading-indicator {
-    display: flex; /* Changed from none to flex in JS to show */
-    align-items: center;
-    justify-content: center;
+/* --- Card/Section Styling for index.html --- */
+.card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); /* More prominent shadow for cards */
     padding: 20px;
-    font-size: 1.1em;
-    color: #555;
-    /* Optional: absolute positioning if you want it to overlay content */
-    /* position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.8); */
+    margin-bottom: 0; /* Managed by column gap */
 }
 
-.spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-left-color: #3498db;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    animation: spin 1s linear infinite;
-    margin-right: 10px;
+/* Specific styling for sections */
+.sms-message-section {
+    /* Styles specific to the SMS message input area */
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.people-list-section {
+    /* Styles specific to the filtered people list */
 }
 
-/* --- END NEW STYLES --- */
-
-
-/* People List */
-#peopleList {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
-    border-top: 1px solid #eee;
+.sms-history-section {
+    /* Styles specific to the SMS history table */
 }
 
-#peopleList li {
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-    font-size: 1.05em;
-    color: #555;
-}
-
-#peopleList li:last-child {
-    border-bottom: none;
+.tag-filter-section {
+    /* Styles specific to the tag filter area */
 }
 
 
-/* --- Styles for the Login Page (login.html) --- */
+/* --- Login Page Specific Styles (login.html) --- */
 body.login-body {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(to bottom right, #f0f7f8, #e7f0f1); /* Subtle light blue-grey gradient */
+    min-height: 100vh; /* Full viewport height */
+    /* Even Lighter, more transparent gradient for background */
+    background: linear-gradient(to right, rgba(37, 180, 208, 0.05), rgba(76, 175, 80, 0.05)); /* Further reduced opacity */
+    font-family: 'Lato', Arial, sans-serif;
+    color: #333;
 }
 
 .login-container {
@@ -219,16 +104,29 @@ body.login-body {
     width: 100%;
 }
 
-/* Harvest Church Logo specific styling */
+/* Harvest Church Logo specific styling - for both login and app header */
 .logo {
-    max-width: 280px;
+    max-width: 200px; /* Consistent size */
     height: auto;
-    margin-bottom: 15px; /* Added controlled space below the logo */
+    display: block; /* Ensures it takes its own line */
 }
+
+/* Specific logo styling for login page to center it */
+.login-container .logo {
+    margin: 0 auto 15px auto; /* Center horizontally, add bottom margin */
+}
+
+/* Specific logo styling for app header to align left */
+.app-header .logo {
+    margin: 0; /* Override centering, align left by default in flex */
+}
+
 
 /* Specific adjustment for h1 within the login container */
 .login-container h1 {
     margin-top: 0px; /* Remove default top margin from h1 */
+    font-family: 'Playfair Display', serif;
+    color: #2c3e50;
 }
 
 .login-container p {
@@ -236,6 +134,7 @@ body.login-body {
     color: #666;
     line-height: 1.5;
 }
+
 .login-btn {
     display: inline-block;
     padding: 12px 25px;
@@ -245,28 +144,400 @@ body.login-body {
     border: 1px solid #ccc;
     border-radius: 5px;
     font-weight: bold;
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+    transition: all 0.3s ease;
+    display: flex; /* Use flexbox for icon and text alignment */
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Space between icon and text */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
+
 .login-btn:hover {
     background-color: #f0f0f0;
-    border-color: #bbb;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
 }
+
 .login-btn img {
-    vertical-align: middle;
+    width: 24px;
+    height: 24px;
+}
+
+
+/* --- User Info Container (for logout button and user details) --- */
+/* Now directly inside .app-header, so relative positioning is not needed here */
+.user-info-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Align items to the right */
+    text-align: right; /* Align text to the right */
+}
+
+.user-info {
+    margin: 0;
+    padding: 0;
+    color: #555;
+    font-size: 0.9em;
+}
+
+#userNameDisplay {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #25B4D0; /* Accent color for user name */
+}
+
+.logout-button {
+    background-color: #f44336; /* Red for logout */
+    color: white;
+    padding: 6px 12px; /* Smaller padding */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.75em; /* Smaller font size */
+    margin-top: 5px; /* Less space above button */
+    transition: background-color 0.3s ease;
+    align-self: flex-end; /* Keep aligned to the right */
+}
+
+.logout-button:hover {
+    background-color: #d32f2f;
+}
+
+/* --- SMS Message Section --- */
+h1 {
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-family: 'Playfair Display', serif; /* Consistent font for headings */
+}
+
+textarea {
+    width: calc(100% - 20px); /* Adjust for padding */
+    padding: 10px;
+    margin-bottom: 5px; /* Reduced margin to bring char count closer */
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 80px;
+    font-family: 'Lato', Arial, sans-serif;
+}
+
+.char-count {
+    font-size: 0.8em;
+    color: #777;
+    text-align: right;
+    margin-bottom: 10px; /* Space below char count */
+}
+
+button {
+    background-color: #25B4D0; /* Primary accent color */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    width: auto; /* Allow button to size naturally */
+    display: inline-block; /* For side-by-side buttons */
+    margin-right: 10px; /* Space between buttons */
+}
+
+button:hover {
+    background-color: #1a8fa6;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+
+/* --- People List Section --- */
+.people-list {
+    border: 1px solid #eee; /* Keep border for internal list */
+    border-radius: 5px; /* Keep internal list rounded corners */
+    max-height: 400px; /* Max height for scrollability */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 10px;
+    background-color: #fdfdfd; /* Lighter background for internal list */
+}
+
+.person-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+.person-item:last-child {
+    border-bottom: none;
+}
+
+.person-item input[type="checkbox"] {
     margin-right: 10px;
+    transform: scale(1.2); /* Slightly larger checkbox */
+}
+
+.person-item label {
+    cursor: pointer;
+    flex-grow: 1; /* Allow label to take available space */
+}
+
+.person-item input[type="checkbox"]:disabled + label {
+    color: #aaa;
+    font-style: italic;
+    cursor: not-allowed;
+}
+
+.selection-controls {
+    display: flex; /* Use flexbox for horizontal buttons */
+    gap: 10px; /* Space between buttons */
+    margin-bottom: 15px;
+    justify-content: flex-start; /* Align buttons to the start */
+}
+
+.selection-controls button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    background-color: #5cb85c; /* Green for selection buttons */
+}
+
+.selection-controls button:hover {
+    background-color: #4cae4c;
+}
+
+
+/* --- Tag Filter Section --- */
+.tag-filter-container {
+    border: 1px solid #eee; /* Keep border for internal list */
+    border-radius: 5px; /* Changed to 5px to match other cards */
+    max-height: 400px; /* Max height for scrollability */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 10px;
+    background-color: #fdfdfd; /* Lighter background for internal list */
+}
+
+.tag-node {
+    margin-bottom: 5px;
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+    color: #333;
+    padding: 5px 0;
+}
+
+.folder-toggle {
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+    display: inline-block; /* Ensure it respects transform */
+}
+
+.folder-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.folder-children {
+    margin-left: 20px; /* Indent children */
+    border-left: 1px dotted #ccc; /* Visual indicator for nesting */
+    padding-left: 10px;
+}
+
+.tag-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 0;
+}
+
+.tag-item input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+
+/* --- SMS History Section --- */
+.sms-history-controls {
+    margin-bottom: 15px;
+    text-align: right; /* Align refresh button to the right */
+}
+
+.sms-history-controls button {
+    background-color: #6c757d; /* Grey for refresh button */
+}
+
+.sms-history-controls button:hover {
+    background-color: #5a6268;
+}
+
+.sms-history-container {
+    border: 1px solid #eee; /* Keep border for internal list */
+    border-radius: 5px; /* Keep internal list rounded corners */
+    max-height: 500px; /* Max height for scrollability */
+    overflow-y: auto; /* Enable vertical scrolling */
+    background-color: #fdfdfd; /* Lighter background for internal list */
+}
+
+#smsHistoryTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+#smsHistoryTable th,
+#smsHistoryTable td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+}
+
+#smsHistoryTable th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #555;
+}
+
+#smsHistoryTable tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+#smsHistoryTable tbody tr:hover {
+    background-color: #e9f7fc; /* Light blue on hover */
+}
+
+/* Status specific styling */
+.status-delivered {
+    color: #28a745; /* Green */
+    font-weight: bold;
+}
+
+.status-failed {
+    color: #dc3545; /* Red */
+    font-weight: bold;
+}
+
+.status-pending {
+    color: #ffc107; /* Yellow/Orange */
+    font-weight: bold;
+}
+
+/* --- Message Box Styling --- */
+.message-box {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 25px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1000;
+    min-width: 250px;
+}
+
+.message-box.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.message-box.info {
+    background-color: #17a2b8; /* Blue-ish for info */
+}
+
+.message-box.success {
+    background-color: #28a745; /* Green for success */
+}
+
+.message-box.error {
+    background-color: #dc3545; /* Red for error */
+}
+
+.message-box.warning {
+    background-color: #ffc107; /* Orange for warning */
+    color: #333; /* Darker text for warning */
+}
+
+/* --- Loading Indicator Styling --- */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-style: italic;
+    color: #777;
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #25B4D0;
+    border-radius: 50%;
     width: 20px;
     height: 20px;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* --- Responsive adjustments --- */
 @media (max-width: 768px) {
-    .container {
-        flex-direction: column; /* Stack columns on small screens */
-        gap: 20px;
-    }
-    .container, .login-container {
-        margin: 20px;
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
         padding: 15px;
+    }
+
+    .app-header .logo {
+        margin-bottom: 10px;
+    }
+
+    .user-info-container {
+        align-items: flex-start;
+        text-align: left;
+        width: 100%; /* Take full width on small screens */
+    }
+
+    .logout-button {
+        align-self: flex-start; /* Align to the left on small screens */
+        margin-top: 15px;
+    }
+
+    .container {
+        flex-direction: column;
+        padding: 15px;
+        margin: 15px auto;
+    }
+
+    .left-column,
+    .right-column {
+        min-width: unset; /* Remove min-width on smaller screens */
+        width: 100%; /* Take full width */
+        padding-right: 0;
+        padding-left: 0;
+        border-right: none; /* Remove separator */
+    }
+
+    .selection-controls {
+        flex-direction: column; /* Stack buttons vertically */
+        gap: 8px;
+    }
+
+    .selection-controls button {
+        width: 100%; /* Full width buttons */
+        margin-right: 0;
+    }
+
+    .sms-history-controls {
+        text-align: left; /* Align refresh button to the left on small screens */
     }
 }

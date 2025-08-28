@@ -83,14 +83,20 @@
             <!-- Tag Filter Section -->
             <div class="card tag-filter-section">
                 <h1>Filter People by Tags</h1>
-                <div id="tagFilter" class="tag-filter-container">
+                <!-- Moved tagLoadingIndicator inside tagFilter, but before tag-content-wrapper -->
+                <div id="tagFilter">
                     <div id="tagLoadingIndicator" class="loading-indicator">
                         <div class="spinner"></div>
                         Loading tags...
                     </div>
+                    <!-- This div will now be the scrollable container for tags -->
                     <div class="tag-content-wrapper" style="display: none;"></div>
                 </div>
+                <!-- Button and cooldown display are now outside the scrollable tag-filter-container -->
                 <button id="applyFilterButton">Apply Tag Filter</button>
+                <div id="apiCooldownWrapper" style="margin-top: 10px; display: flex; flex-direction: column; align-items: center;">
+                    <span id="apiCooldownDisplay" style="color: #d9534f; font-weight: bold;"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -109,23 +115,29 @@
         // Store all people fetched after a tag filter (for search within)
         let peopleFilteredByTags = [];
 
+        // API Cooldown variables
+        let isApiCoolingDown = false;
+        let apiCooldownEndTime = 0;
+        let apiCooldownInterval = null; // To store the setInterval ID
+
         document.addEventListener('DOMContentLoaded', async () => {
             const sendSmsButton = document.getElementById('sendSms');
             const messageInput = document.getElementById('message');
             const charCountDisplay = document.getElementById('charCount'); // Get character count element
             const peopleListDiv = document.getElementById('peopleList');
-            const tagFilterDiv = document.getElementById('tagFilter');
+            const tagFilterDiv = document.getElementById('tagFilter'); // This is now just the container for tags and loading indicator
             const applyFilterButton = document.getElementById('applyFilterButton');
             const clearAllSelectedButton = document.getElementById('clearAllSelected');
             const selectAllVisibleButton = document.getElementById('selectAllVisible');
             const smsHistoryTableBody = document.querySelector('#smsHistoryTable tbody');
             const refreshSmsHistoryButton = document.getElementById('refreshSmsHistory');
             const tagLoadingIndicator = document.getElementById('tagLoadingIndicator');
-            const tagContentWrapper = tagFilterDiv.querySelector('.tag-content-wrapper');
+            const tagContentWrapper = document.querySelector('#tagFilter .tag-content-wrapper'); // Adjusted selector
             const peopleLoadingIndicator = document.getElementById('peopleLoadingIndicator');
             const selectionControls = document.querySelector('.selection-controls');
             const smsHistoryLoading = document.getElementById('smsHistoryLoading');
             const peopleSearchInput = document.getElementById('peopleSearchInput'); // Get search input
+            const apiCooldownDisplay = document.getElementById('apiCooldownDisplay'); // Get cooldown display element
 
             const MAX_SMS_CHARS = 160; // Define the maximum characters for a single SMS segment
 
@@ -163,12 +175,11 @@
                 } catch (error) {
                     console.error('Error fetching current user:', error);
                     showMessageBox('Failed to fetch user data. Please refresh.', 'error');
-                    if (error.message.includes('401') || error.message.includes('403')) {
-                        window.location.href = '/login';
-                    }
+                    // Do NOT redirect here for general errors, only for 401/403 handled above.
+                    // This allows other parts of the page to load if possible.
                 }
             }
-            fetchCurrentUser(); // Fetch user data on page load
+            // fetchCurrentUser(); // No longer called directly here
 
             // Logout functionality
             const logoutButton = document.getElementById('logoutButton');
@@ -224,6 +235,7 @@
                     smsHistoryLoading.style.display = 'none';
                 }
             }
+            // fetchSmsHistory(); // No longer called directly here
 
             // Function to display SMS history
             function displaySmsHistory(history) {
@@ -299,7 +311,8 @@
                         <label for="person-${person.id}">${fullName} ${phoneNumber ? `(${phoneNumber})` : ' (No Mobile Number)'}</label>
                     `;
 
-                    const checkbox = personDiv.querySelector('input[type="checkbox"]');
+                    // FIX: Changed quotes to backticks to resolve SyntaxError
+                    const checkbox = personDiv.querySelector(`input[type="checkbox"]`);
                     if (!checkbox.disabled) {
                         checkbox.addEventListener('change', (event) => {
                             if (event.target.checked) {
@@ -341,26 +354,116 @@
             }
 
 
+            // Function to start the API cooldown timer
+            function startApiCooldown(options = {}) {
+                const {
+                    baseDurationMs = 5000, // Default to 5 seconds for a successful call
+                    errorDurationMs = 30000, // Longer for a 429 error
+                    message = 'Waiting for server',
+                    isError = false, // Flag to indicate if this cooldown is due to an error
+                    peopleCount = 0 // Number of people returned, for dynamic adjustment
+                } = options;
+
+                let durationMs = isError ? errorDurationMs : baseDurationMs;
+
+                // Adjust duration based on peopleCount if it's a successful call (not an error cooldown)
+                if (!isError && peopleCount > 0) {
+                    const COOLDOWN_PER_PERSON_MS = 100; // 100ms per person
+                    const MIN_COOLDOWN_FOR_PEOPLE = 5000; // Minimum 5s if people are returned
+                    let calculatedDynamicDuration = peopleCount * COOLDOWN_PER_PERSON_MS;
+
+                    // The duration should be at least MIN_COOLDOWN_FOR_PEOPLE and also at least the calculated dynamic duration.
+                    durationMs = Math.max(MIN_COOLDOWN_FOR_PEOPLE, calculatedDynamicDuration);
+                } else if (!isError && peopleCount === 0) {
+                    // If no people are returned for a successful (non-error) call, use a shorter default base cooldown
+                    durationMs = 5000; // 5 seconds
+                }
+
+                // Cap the cooldown to a reasonable maximum if it gets too long
+                const MAX_DYNAMIC_COOLDOWN = 90000; // Max 90 seconds
+                durationMs = Math.min(durationMs, MAX_DYNAMIC_COOLDOWN);
+
+
+                if (apiCooldownInterval) {
+                    clearInterval(apiCooldownInterval);
+                }
+                isApiCoolingDown = true;
+                applyFilterButton.disabled = true;
+                applyFilterButton.style.opacity = '0.7'; // Visual hint
+                applyFilterButton.style.cursor = 'not-allowed'; // Set cursor to not-allowed
+                apiCooldownEndTime = Date.now() + durationMs;
+
+                // Initial display of the message with the calculated full duration
+                apiCooldownDisplay.textContent = `${message} (${Math.ceil(durationMs / 1000)}s)...`;
+
+                apiCooldownInterval = setInterval(() => {
+                    const timeLeft = Math.ceil((apiCooldownEndTime - Date.now()) / 1000);
+                    if (timeLeft <= 0) {
+                        clearInterval(apiCooldownInterval);
+                        isApiCoolingDown = false;
+                        applyFilterButton.disabled = false;
+                        applyFilterButton.style.opacity = '1';
+                        applyFilterButton.style.cursor = 'pointer'; // Reset cursor to pointer
+                        apiCooldownDisplay.textContent = '';
+                        showMessageBox('Server is ready. You can filter again.', 'info', 2000); // Updated message
+                    } else {
+                        apiCooldownDisplay.textContent = `${message} (${timeLeft}s)...`; // Updated message
+                    }
+                }, 1000); // Update every second
+            }
+
+
             async function fetchPeople(tagIds = []) {
+                if (isApiCoolingDown) {
+                    showMessageBox(`API is currently on cooldown. Please wait before filtering again.`, 'warning');
+                    return;
+                }
+
                 peopleListDiv.innerHTML = '<p>Loading people...</p>';
                 peopleLoadingIndicator.style.display = 'flex';
                 selectionControls.style.display = 'none';
                 peopleSearchInput.value = ''; // Clear search input on new tag filter
                 allPeopleFromTags = []; // Clear previous people data
 
+                // Immediately disable button visually while loading (before API call)
+                applyFilterButton.disabled = true;
+                applyFilterButton.style.opacity = '0.7';
+                applyFilterButton.style.cursor = 'not-allowed'; // Set cursor to not-allowed
+
                 try {
                     const queryParams = tagIds.length > 0 ? `?${tagIds.map(id => `tag_id=${id}`).join('&')}` : '';
                     const response = await fetch(`/api/people${queryParams}`);
                     if (!response.ok) {
+                        // Handle 429 Too Many Requests specifically
+                        if (response.status === 429) {
+                            console.error('Breeze API Rate Limit Exceeded (429)');
+                            showMessageBox('Too many requests to Breeze API. Please wait a moment.', 'error', 5000);
+                            startApiCooldown({
+                                errorDurationMs: 30000, // Increased error cooldown
+                                message: 'Rate limit hit. Waiting for server',
+                                isError: true
+                            }); // Longer cooldown for actual 429
+                        }
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const people = await response.json();
                     displayPeople(people); // This now populates allPeopleFromTags and triggers search filter
                     lastAppliedTagIds = tagIds;
+                    startApiCooldown({
+                        peopleCount: people.length,
+                        message: 'Processing complete. Waiting',
+                        baseDurationMs: 5000 // Ensure base duration is passed for successful calls
+                    }); // Start cooldown after a successful request, with dynamic duration
                 } catch (error) {
                     console.error('Error fetching people:', error);
                     peopleListDiv.innerHTML = '<p class="error">Failed to load people. Please try again.</p>';
                     selectionControls.style.display = 'none';
+                    // Re-enable button if there was an error not leading to startApiCooldown (e.g. general HTTP error)
+                    if (!isApiCoolingDown) { // Only re-enable if no cooldown was triggered by a 429
+                       applyFilterButton.disabled = false;
+                       applyFilterButton.style.opacity = '1';
+                       applyFilterButton.style.cursor = 'pointer'; // Reset cursor to pointer
+                    }
                 } finally {
                     peopleLoadingIndicator.style.display = 'none';
                 }
@@ -374,7 +477,7 @@
             function setNodeCheckedState(node, checked) {
                 node.checked = checked; // Set the current node's checked state
                 
-                // NEW: Update the DOM checkbox for the current node (folder or tag)
+                // Update the DOM checkbox for the current node (folder or tag)
                 const selfCheckbox = document.getElementById(`${node.type}-${node.id}`);
                 if (selfCheckbox) {
                     selfCheckbox.checked = checked;
@@ -396,7 +499,6 @@
                         node.children.forEach(childNode => setNodeCheckedState(childNode, checked));
                     }
                 } 
-                // No else if (node.type === 'tag') needed here because selfCheckbox handles it for individual tags too.
             }
 
 
@@ -412,7 +514,7 @@
                     if (node.type === 'folder') {
                         const folderHeader = document.createElement('div');
                         folderHeader.className = 'folder-header';
-                        // NEW: Added checkbox for the folder itself
+                        // Added checkbox for the folder itself
                         folderHeader.innerHTML = `
                             <span class="folder-toggle ${node.expanded ? 'expanded' : ''}">▶</span>
                             <input type="checkbox" id="folder-${node.id}" value="${node.id}" ${node.checked ? 'checked' : ''}>
@@ -436,7 +538,7 @@
                             childrenContainer.style.display = node.expanded ? 'block' : 'none';
                         });
 
-                        // NEW: Event listener for the folder checkbox
+                        // Event listener for the folder checkbox
                         folderHeader.querySelector(`input[type="checkbox"]#folder-${node.id}`).addEventListener('change', (event) => {
                             setNodeCheckedState(node, event.target.checked);
                         });
@@ -495,6 +597,7 @@
                     tagLoadingIndicator.style.display = 'none';
                 }
             }
+            // fetchTags(); // No longer called directly here
 
             /**
              * Recursively collects all checked tag IDs from the tag tree.
@@ -533,7 +636,7 @@
                 return [...new Set(checkedIds)];
             }
 
-            // NEW: Debounce utility function
+            // Debounce utility function
             function debounce(func, delay) {
                 let timeout;
                 return function(...args) {
@@ -544,6 +647,11 @@
             }
 
             function updatePeopleFilter() {
+                if (isApiCoolingDown) {
+                    showMessageBox(`Please wait ${Math.ceil((apiCooldownEndTime - Date.now()) / 1000)}s before applying another filter.`, 'warning');
+                    return;
+                }
+
                 const checkedTagIds = getCheckedTagIds(currentTagTree);
                 if (checkedTagIds.length === 0) {
                     peopleListDiv.innerHTML = '<p>No tags selected. Apply a tag filter to see people.</p>';
@@ -646,7 +754,7 @@
             });
 
             refreshSmsHistoryButton.addEventListener('click', fetchSmsHistory);
-            // NEW: Apply debounce to the applyFilterButton click handler
+            // Apply debounce to the applyFilterButton click handler
             applyFilterButton.addEventListener('click', debounce(updatePeopleFilter, 500)); // Debounce by 500ms
             
             // Add event listener for the search input
@@ -667,10 +775,15 @@
             // Initial character count display
             messageInput.dispatchEvent(new Event('input'));
 
-            // Initial fetches on page load
-            fetchCurrentUser();
-            fetchTags();
-            fetchSmsHistory();
+            // Initial fetches on page load: Await these to ensure proper order and error handling
+            try {
+                await fetchCurrentUser();
+                await fetchTags();
+                await fetchSmsHistory();
+            } catch (error) {
+                console.error('Error during initial page load setup:', error);
+                showMessageBox('An error occurred during initial setup. Please refresh the page.', 'error', 5000);
+            }
         });
     </script>
 </body>

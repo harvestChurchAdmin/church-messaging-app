@@ -61,6 +61,8 @@ body.app-body {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); /* More prominent shadow for cards */
     padding: 20px;
     margin-bottom: 0; /* Managed by column gap */
+    display: flex; /* Make card a flex container */
+    flex-direction: column; /* Stack children vertically */
 }
 
 /* Specific styling for sections */
@@ -77,7 +79,20 @@ body.app-body {
 }
 
 .tag-filter-section {
-    /* Styles specific to the tag filter area */
+    /* The card is now a flex container, so its direct children will stack */
+    /* Remove overflow and max-height from here, apply to inner container */
+}
+
+/* NEW: Style for the inner tag container to be scrollable */
+#tagFilter { /* This is the div that contains the tagLoadingIndicator and tag-content-wrapper */
+    flex-grow: 1; /* Allows this section to take available vertical space */
+    max-height: 300px; /* Set a max height for the scrollable tags list */
+    overflow-y: auto; /* Enable vertical scrolling */
+    border: 1px solid #eee;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: #fdfdfd;
+    margin-bottom: 15px; /* Space between scrollable list and button */
 }
 
 
@@ -246,6 +261,11 @@ button {
     margin-right: 10px; /* Space between buttons */
 }
 
+/* Style for disabled buttons to show not-allowed cursor */
+button:disabled {
+    cursor: not-allowed !important; /* Override default cursor for disabled state */
+}
+
 button:hover {
     background-color: #1a8fa6;
     transform: translateY(-1px);
@@ -255,7 +275,7 @@ button:active {
     transform: translateY(0);
 }
 
-/* NEW: General input text field styling */
+/* General input text field styling */
 .text-input {
     width: calc(100% - 20px); /* Adjust for padding */
     padding: 10px;
@@ -321,14 +341,30 @@ button:active {
 
 
 /* --- Tag Filter Section --- */
-.tag-filter-container {
-    border: 1px solid #eee; /* Keep border for internal list */
-    border-radius: 5px; /* Changed to 5px to match other cards */
-    max-height: 400px; /* Max height for scrollability */
+/* The card class already makes this a flex column.
+   We just need to ensure the h1, then #tagFilter (scrollable),
+   then the button and cooldown wrapper stack correctly. */
+
+
+/* Style for the inner tag container to be scrollable */
+.tag-content-wrapper { /* This is the div that contains the actual tags/folders */
+    flex-grow: 1; /* Allows this section to take available vertical space */
+    max-height: 300px; /* Set a max height for the scrollable tags list */
     overflow-y: auto; /* Enable vertical scrolling */
-    padding: 10px;
-    background-color: #fdfdfd; /* Lighter background for internal list */
+    /* Remove border/padding/background from here, they are on #tagFilter */
 }
+
+#tagFilter { /* This is the div that now wraps only the tag content for the scrollbar */
+    flex-grow: 1; /* Allow this to grow and take space in the parent .card */
+    max-height: 300px; /* Limit height of scrollable area */
+    overflow-y: auto; /* Make it scrollable */
+    border: 1px solid #eee; /* Apply border to the scrollable area */
+    border-radius: 5px;
+    padding: 10px;
+    background-color: #fdfdfd;
+    margin-bottom: 15px; /* Space between scrollable list and button */
+}
+
 
 .tag-node {
     margin-bottom: 5px;
@@ -343,7 +379,7 @@ button:active {
     padding: 5px 0;
 }
 
-/* NEW: Styling for folder checkboxes */
+/* Styling for folder checkboxes */
 .folder-header input[type="checkbox"] {
     margin-left: 10px; /* Space between toggle and checkbox */
     margin-right: 8px; /* Space between checkbox and label */

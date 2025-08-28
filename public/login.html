@@ -4,25 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messenger - Login</title>
-    <!-- Google Fonts for styling -->
+    <!-- Google Fonts for consistency with login page -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css"> <!-- Link to the shared stylesheet -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body class="login-body">
-    <div class="login-container">
-        <!-- Application Logo: This image tag will have its src dynamically set by server.js -->
+    <!-- NEW: Application Header, mirroring index.html -->
+    <header class="app-header">
         <img id="appLogo" src="{{APP_LOGO_URL}}" alt="Application Logo" class="logo">
-        <h1>Welcome</h1>
-        <p>Please log in with your Harvest Church account to access the messaging application.</p>
-        <a href="/auth/google" class="login-btn">
-            <!-- Google logo -->
-            <img src="https://img.icons8.com/color/48/000000/google-logo.png" alt="Google Logo">
-            Login with Google
-        </a>
-    </div>
+        <!-- No user info container on login page header -->
+    </header>
 
-    <!-- The client-side script for setting appLogo.src is removed, as server.js now handles this directly. -->
+    <!-- NEW: Main content area for the login card, similar to the main 'container' in index.html -->
+    <div class="login-page-main-content">
+        <div class="card login-card"> <!-- Applied 'card' class for consistent styling -->
+            <h1>Welcome</h1>
+            <p>Please log in with your Harvest Church account to access the messaging application.</p>
+            <a href="/auth/google" class="login-btn">
+                <!-- Google logo -->
+                <img src="https://img.icons8.com/color/48/000000/google-logo.png" alt="Google Logo">
+                Login with Google
+            </a>
+        </div>
+    </div>
 </body>
 </html>

@@ -54,7 +54,7 @@ body.app-body {
     gap: 20px; /* Space between sections in the column */
 }
 
-/* --- Card/Section Styling for index.html --- */
+/* --- Card/Section Styling for index.html and now login.html --- */
 .card {
     background-color: #ffffff;
     border-radius: 8px;
@@ -84,25 +84,36 @@ body.app-body {
 /* --- Login Page Specific Styles (login.html) --- */
 body.login-body {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    /* NEW: Changed to column layout to stack header and main content */
+    flex-direction: column;
+    /* Removed align-items: center; from here, now handled by .login-page-main-content */
+    justify-content: flex-start; /* Align header to top */
     min-height: 100vh; /* Full viewport height */
-    /* Even Lighter, more transparent gradient for background */
-    background: linear-gradient(to right, rgba(37, 180, 208, 0.05), rgba(76, 175, 80, 0.05)); /* Further reduced opacity */
+    background-color: #e9eff3; 
     font-family: 'Lato', Arial, sans-serif;
     color: #333;
 }
 
-.login-container {
-    background-color: #fff;
-    padding: 40px;
-    border-radius: 8px;
-    border-top: 5px solid #25B4D0; /* Accent color */
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    text-align: center;
-    max-width: 400px;
-    width: 100%;
+/* NEW: Container for the login card to center it vertically/horizontally below the header */
+.login-page-main-content {
+    flex-grow: 1; /* Allows this content to take up remaining vertical space */
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Centers the login-card */
+    width: 100%; /* Take full width */
+    padding: 20px 0; /* Add some vertical padding */
 }
+
+
+/* NEW: Styles specifically for the login card, leveraging the .card class */
+.login-card {
+    text-align: center;
+    max-width: 400px; /* Max width for the login card */
+    width: 90%; /* Responsive width */
+    padding: 40px; /* Consistent padding */
+    /* .card already provides background, border-radius, box-shadow */
+}
+
 
 /* Harvest Church Logo specific styling - for both login and app header */
 .logo {
@@ -111,25 +122,23 @@ body.login-body {
     display: block; /* Ensures it takes its own line */
 }
 
-/* Specific logo styling for login page to center it */
-.login-container .logo {
-    margin: 0 auto 15px auto; /* Center horizontally, add bottom margin */
-}
-
-/* Specific logo styling for app header to align left */
+/* Specific logo styling for app header to align left (this now applies to login page header too) */
 .app-header .logo {
     margin: 0; /* Override centering, align left by default in flex */
+    /* NEW: Increase size of logo in the header for both app and login page for better visibility */
+    max-width: 220px; 
 }
 
-
-/* Specific adjustment for h1 within the login container */
-.login-container h1 {
-    margin-top: 0px; /* Remove default top margin from h1 */
+/* Specific adjustment for h1 within the login container (now .login-card) */
+.login-card h1 { /* Changed from .login-container h1 */
+    margin-top: 0px; 
+    font-size: 2.2em; /* Larger font size */
+    margin-bottom: 20px; /* Increased bottom margin */
     font-family: 'Playfair Display', serif;
     color: #2c3e50;
 }
 
-.login-container p {
+.login-card p { /* Changed from .login-container p */
     margin-bottom: 30px;
     color: #666;
     line-height: 1.5;

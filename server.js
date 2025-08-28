@@ -8,8 +8,9 @@ const path = require('path');
 require('dotenv').config(); // Load environment variables from .env
 const fs = require('fs'); // Import file system module for reading HTML
 
-// Import the SQLite database utility
+// Import necessary services and utilities
 const db = require('./utils/db'); // Ensure this path is correct
+const mailService = require('./services/mail-service'); // Import mailService
 
 // Import routes and middleware
 const apiRoutes = require('./routes/api-routes');
@@ -76,31 +77,25 @@ app.get('/login', (req, res) => {
     res.send(loginHtml);
 });
 
-// --- NEW: User Info Endpoint ---
-// This endpoint provides the currently logged-in user's details to the frontend.
+// --- User Info Endpoint ---
 app.get('/user', authCheck, (req, res) => {
-    // req.user is populated by Passport's deserializeUser
     if (req.user) {
         res.json({
             id: req.user.id,
             displayName: req.user.displayName,
-            email: req.user.email || 'N/A' // Assuming email might be available from profile
+            email: req.user.email || 'N/A'
         });
     } else {
         res.status(401).json({ message: 'User not authenticated.' });
     }
 });
 
-
 // --- Twilio Status Callback Endpoint ---
-// This endpoint receives updates from Twilio about message status.
-// It must be publicly accessible for Twilio to send callbacks.
-// Twilio sends application/x-www-form-urlencoded data, so we use express.urlencoded() middleware for this specific route.
 app.post('/twilio-status-callback', express.urlencoded({ extended: true }), (req, res) => {
     const { MessageSid, MessageStatus, To, From, ApiVersion, AccountSid, ErrorCode, ErrorMessage } = req.body;
 
     console.log(`[Twilio Callback] Received: SID=${MessageSid}, Status=${MessageStatus}, To=${To}, From=${From}`);
-    console.log(`[Twilio Callback] Full body:`, req.body); // Log full body for debugging
+    console.log(`[Twilio Callback] Full body:`, req.body);
 
     if (!MessageSid || !MessageStatus) {
         console.warn('[Twilio Callback] Received incomplete Twilio status callback. Missing SID or Status.');
@@ -108,7 +103,6 @@ app.post('/twilio-status-callback', express.urlencoded({ extended: true }), (req
     }
 
     try {
-        // Update the SMS record in the SQLite database
         db.updateSmsStatus(MessageSid, MessageStatus, ErrorCode, ErrorMessage);
         console.log(`[Twilio Callback] Database updated for SID ${MessageSid} with status ${MessageStatus}.`);
         res.status(200).send('Callback received and processed.');
@@ -118,20 +112,66 @@ app.post('/twilio-status-callback', express.urlencoded({ extended: true }), (req
     }
 });
 
+// --- Twilio Incoming Message Callback Endpoint ---
+app.post('/twilio-reply-callback', express.urlencoded({ extended: true }), async (req, res) => {
+    console.log('[Twilio Reply Callback] Received message:', req.body);
+
+    const { From: recipientNumber, To: twilioNumber, Body: messageBody } = req.body;
+
+    if (!recipientNumber || !messageBody) {
+        console.error('[Twilio Reply Callback] Missing required parameters (From or Body).');
+        return res.status(400).send('Missing required parameters.');
+    }
+
+    try {
+        const lastSentSms = await db.getLastSentSmsToNumber(recipientNumber);
+
+        if (lastSentSms && lastSentSms.senderUserId) {
+            console.log(`[Twilio Reply Callback] Found last message sent to ${recipientNumber} by user ID: ${lastSentSms.senderUserId}`);
+
+            // NEW: Convert senderUserId to an integer before lookup
+            const originalSenderUser = await db.findUserById(parseInt(lastSentSms.senderUserId, 10));
+
+            if (originalSenderUser && originalSenderUser.email) {
+                console.log(`[Twilio Reply Callback] Original sender email found: ${originalSenderUser.email}`);
+                
+                // Pass lastSentSms.recipientName to the mailService.sendReplyEmail function
+                await mailService.sendReplyEmail(
+                    originalSenderUser.email,
+                    originalSenderUser.displayName || 'App User',
+                    lastSentSms.recipientName || recipientNumber, // Use stored recipientName, fallback to phone number
+                    recipientNumber, // This is the actual phone number of the person who replied
+                    messageBody,
+                    lastSentSms.originalMessageBody
+                );
+                console.log(`[Twilio Reply Callback] Reply email sent to ${originalSenderUser.email}.`);
+            } else {
+                console.error(`[Twilio Reply Callback] Original sender's email or display name not found for user ID: ${lastSentSms.senderUserId}. Found user object:`, originalSenderUser);
+            }
+        } else {
+            console.warn(`[Twilio Reply Callback] No recent sent SMS found for ${recipientNumber}. Cannot route reply.`);
+        }
+
+        res.status(200).send('<Response></Response>');
+
+    } catch (error) {
+        console.error(`[Twilio Reply Callback] Error processing incoming SMS from ${recipientNumber}:`, error);
+        res.status(500).send('<Response></Response>');
+    }
+});
+
 
 // Serve static files *after* protected routes that might intercept the root.
-// This will serve CSS, client-side JS (like your index.html's script), images
-// directly when requested, but the initial '/' request will hit the GET '/' route first.
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Optional: Handle logout
 app.get('/logout', (req, res) => {
-    req.logout((err) => { // Passport's logout method
+    req.logout((err) => {
         if (err) { 
             console.error("Error during logout:", err);
             return res.status(500).send("Error logging out.");
         }
-        res.redirect('/login'); // Redirect to the login page after logout
+        res.redirect('/login');
     });
 });
 

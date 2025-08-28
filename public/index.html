@@ -33,7 +33,9 @@
 
             <!-- People List Section -->
             <div class="card people-list-section">
-                <h2 class="mt-8">Filtered People</h2>
+                <h2>Filtered People</h2>
+                <!-- NEW: Search input for people list -->
+                <input type="text" id="peopleSearchInput" placeholder="Search by name..." class="text-input" style="margin-bottom: 15px;">
                 <div class="selection-controls" style="display: none;">
                     <button id="selectAllVisible">Select All Visible</button>
                     <button id="clearAllSelected">Clear All</button>
@@ -49,7 +51,7 @@
 
             <!-- SMS History Section -->
             <div class="card sms-history-section">
-                <h1 class="mt-8">SMS History</h1>
+                <h1>SMS History</h1>
                 <div class="sms-history-controls">
                     <button id="refreshSmsHistory">Refresh History</button>
                 </div>
@@ -104,6 +106,9 @@
         // Global variable to store logged-in user's details
         let currentUser = null;
 
+        // Store all people fetched after a tag filter (for search within)
+        let peopleFilteredByTags = [];
+
         document.addEventListener('DOMContentLoaded', async () => {
             const sendSmsButton = document.getElementById('sendSms');
             const messageInput = document.getElementById('message');
@@ -120,6 +125,7 @@
             const peopleLoadingIndicator = document.getElementById('peopleLoadingIndicator');
             const selectionControls = document.querySelector('.selection-controls');
             const smsHistoryLoading = document.getElementById('smsHistoryLoading');
+            const peopleSearchInput = document.getElementById('peopleSearchInput'); // Get search input
 
             const MAX_SMS_CHARS = 160; // Define the maximum characters for a single SMS segment
 
@@ -248,7 +254,7 @@
 
             // --- People List and Tag Filtering Functions ---
 
-            let allFetchedPeople = [];
+            let allPeopleFromTags = []; // Stores all people fetched from the *last applied tag filter*
 
             function getPhoneNumber(person) {
                 const phoneEntries = person.details && person.details['1413026988'];
@@ -266,27 +272,30 @@
                 return null;
             }
 
-            function displayPeople(people) {
+            // Function to render the people list (can be all, or filtered by search)
+            function renderPeopleList(peopleToDisplay) {
                 peopleListDiv.innerHTML = '';
-                selectedPeopleForSms.clear();
-                allFetchedPeople = people;
+                // Do NOT clear selectedPeopleForSms here. It should persist across search filters.
 
-                if (people.length === 0) {
-                    peopleListDiv.innerHTML = '<p>No people found for the selected tags.</p>';
+                if (peopleToDisplay.length === 0) {
+                    peopleListDiv.innerHTML = '<p>No people match your search or tag filter.</p>';
                     selectionControls.style.display = 'none';
                     return;
                 }
 
                 selectionControls.style.display = 'flex';
 
-                people.forEach(person => {
+                peopleToDisplay.forEach(person => {
                     const personDiv = document.createElement('div');
                     personDiv.className = 'person-item';
                     const fullName = `${person.first_name || ''} ${person.last_name || ''}`.trim();
                     const phoneNumber = getPhoneNumber(person);
 
+                    // Check if this person was already selected
+                    const isSelected = selectedPeopleForSms.has(person.id);
+
                     personDiv.innerHTML = `
-                        <input type="checkbox" id="person-${person.id}" value="${person.id}" ${phoneNumber ? '' : 'disabled'}>
+                        <input type="checkbox" id="person-${person.id}" value="${person.id}" ${phoneNumber ? '' : 'disabled'} ${isSelected ? 'checked' : ''}>
                         <label for="person-${person.id}">${fullName} ${phoneNumber ? `(${phoneNumber})` : ' (No Mobile Number)'}</label>
                     `;
 
@@ -308,10 +317,36 @@
                 });
             }
 
+            // Function to update the initial list after tag filtering
+            function displayPeople(people) {
+                allPeopleFromTags = people; // Store the full list from tag filter
+                // Now, re-apply the search filter if there's a search term
+                filterPeopleBySearchTerm(); // Will call renderPeopleList internally
+            }
+
+
+            // Function to filter people by search input
+            function filterPeopleBySearchTerm() {
+                const searchTerm = peopleSearchInput.value.toLowerCase().trim();
+                let peopleToDisplay = allPeopleFromTags;
+
+                if (searchTerm) {
+                    peopleToDisplay = allPeopleFromTags.filter(person => {
+                        const fullName = `${person.first_name || ''} ${person.last_name || ''}`.trim().toLowerCase();
+                        const phoneNumber = getPhoneNumber(person); // Get phone number for search if needed
+                        return fullName.includes(searchTerm) || (phoneNumber && phoneNumber.includes(searchTerm));
+                    });
+                }
+                renderPeopleList(peopleToDisplay);
+            }
+
+
             async function fetchPeople(tagIds = []) {
                 peopleListDiv.innerHTML = '<p>Loading people...</p>';
                 peopleLoadingIndicator.style.display = 'flex';
                 selectionControls.style.display = 'none';
+                peopleSearchInput.value = ''; // Clear search input on new tag filter
+                allPeopleFromTags = []; // Clear previous people data
 
                 try {
                     const queryParams = tagIds.length > 0 ? `?${tagIds.map(id => `tag_id=${id}`).join('&')}` : '';
@@ -320,7 +355,7 @@
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const people = await response.json();
-                    displayPeople(people);
+                    displayPeople(people); // This now populates allPeopleFromTags and triggers search filter
                     lastAppliedTagIds = tagIds;
                 } catch (error) {
                     console.error('Error fetching people:', error);
@@ -330,6 +365,40 @@
                     peopleLoadingIndicator.style.display = 'none';
                 }
             }
+
+            /**
+             * Recursively sets the checked state for a node (folder or tag) and its children.
+             * @param {object} node - The tag or folder node.
+             * @param {boolean} checked - The desired checked state.
+             */
+            function setNodeCheckedState(node, checked) {
+                node.checked = checked; // Set the current node's checked state
+                
+                // NEW: Update the DOM checkbox for the current node (folder or tag)
+                const selfCheckbox = document.getElementById(`${node.type}-${node.id}`);
+                if (selfCheckbox) {
+                    selfCheckbox.checked = checked;
+                }
+
+                // If it's a folder, iterate through its tags and children
+                if (node.type === 'folder') {
+                    // Update immediate child tags
+                    if (node.tags) {
+                        node.tags.forEach(tag => {
+                            tag.checked = checked;
+                            // Also update the actual checkbox in the DOM if it exists
+                            const checkbox = document.getElementById(`tag-${tag.id}`);
+                            if (checkbox) checkbox.checked = checked;
+                        });
+                    }
+                    // Recursively update child folders
+                    if (node.children) {
+                        node.children.forEach(childNode => setNodeCheckedState(childNode, checked));
+                    }
+                } 
+                // No else if (node.type === 'tag') needed here because selfCheckbox handles it for individual tags too.
+            }
+
 
             // Function to display nested tags and folders
             function displayTags(tagTree, parentElement) {
@@ -343,9 +412,11 @@
                     if (node.type === 'folder') {
                         const folderHeader = document.createElement('div');
                         folderHeader.className = 'folder-header';
+                        // NEW: Added checkbox for the folder itself
                         folderHeader.innerHTML = `
                             <span class="folder-toggle ${node.expanded ? 'expanded' : ''}">▶</span>
-                            <span>${node.name}</span>
+                            <input type="checkbox" id="folder-${node.id}" value="${node.id}" ${node.checked ? 'checked' : ''}>
+                            <label for="folder-${node.id}"> ${node.name}</label>
                         `;
                         nodeDiv.appendChild(folderHeader);
 
@@ -358,10 +429,16 @@
                         }
                         nodeDiv.appendChild(childrenContainer);
 
+                        // Event listener for the folder toggle icon
                         folderHeader.querySelector('.folder-toggle').addEventListener('click', () => {
                             node.expanded = !node.expanded;
                             folderHeader.querySelector('.folder-toggle').classList.toggle('expanded', node.expanded);
                             childrenContainer.style.display = node.expanded ? 'block' : 'none';
+                        });
+
+                        // NEW: Event listener for the folder checkbox
+                        folderHeader.querySelector(`input[type="checkbox"]#folder-${node.id}`).addEventListener('change', (event) => {
+                            setNodeCheckedState(node, event.target.checked);
                         });
 
                         node.tags.forEach(tag => {
@@ -419,23 +496,51 @@
                 }
             }
 
+            /**
+             * Recursively collects all checked tag IDs from the tag tree.
+             * Includes tags directly checked and tags within checked folders.
+             * @param {Array<object>} nodes - The array of tag/folder nodes.
+             * @returns {Array<string>} An array of checked tag IDs.
+             */
             function getCheckedTagIds(nodes) {
                 let checkedIds = [];
                 nodes.forEach(node => {
                     if (node.type === 'tag' && node.checked) {
                         checkedIds.push(node.id);
-                    } else if (node.type === 'folder') {
-                        node.tags.forEach(tag => {
-                            if (tag.checked) {
-                                checkedIds.push(tag.id);
-                            }
-                        });
+                    } else if (node.type === 'folder' && node.checked) {
+                        // If the folder itself is checked, add all its contained tags
+                        if (node.tags) {
+                            node.tags.forEach(tag => checkedIds.push(tag.id));
+                        }
+                        // And recursively add tags from its children (subfolders)
+                        if (node.children) {
+                            checkedIds = checkedIds.concat(getCheckedTagIds(node.children));
+                        }
+                    } else if (node.type === 'folder' && !node.checked) {
+                        // If folder is not checked, still check its direct children for individual checks
+                        if (node.tags) {
+                            node.tags.forEach(tag => {
+                                if (tag.checked) checkedIds.push(tag.id);
+                            });
+                        }
+                        // And recursively check subfolders' individually checked tags
                         if (node.children) {
                             checkedIds = checkedIds.concat(getCheckedTagIds(node.children));
                         }
                     }
                 });
-                return checkedIds;
+                // Ensure unique IDs in case a tag is duplicated or within multiple selected paths
+                return [...new Set(checkedIds)];
+            }
+
+            // NEW: Debounce utility function
+            function debounce(func, delay) {
+                let timeout;
+                return function(...args) {
+                    const context = this;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(context, args), delay);
+                };
             }
 
             function updatePeopleFilter() {
@@ -443,6 +548,8 @@
                 if (checkedTagIds.length === 0) {
                     peopleListDiv.innerHTML = '<p>No tags selected. Apply a tag filter to see people.</p>';
                     selectionControls.style.display = 'none';
+                    allPeopleFromTags = []; // Clear people when no tags selected
+                    peopleSearchInput.value = ''; // Clear search input
                     return;
                 }
                 fetchPeople(checkedTagIds);
@@ -458,9 +565,11 @@
 
             // "Select All Visible" button functionality
             selectAllVisibleButton.addEventListener('click', () => {
+                // Selects only the currently RENDERED people
                 document.querySelectorAll('#peopleList .person-item input[type="checkbox"]').forEach(checkbox => {
                     const personId = checkbox.value;
-                    const person = allFetchedPeople.find(p => p.id === personId);
+                    // Find the person object from the *originally filtered by tags* list
+                    const person = allPeopleFromTags.find(p => p.id === personId);
                     const phoneNumber = getPhoneNumber(person);
 
                     if (phoneNumber) {
@@ -537,7 +646,12 @@
             });
 
             refreshSmsHistoryButton.addEventListener('click', fetchSmsHistory);
-            applyFilterButton.addEventListener('click', updatePeopleFilter);
+            // NEW: Apply debounce to the applyFilterButton click handler
+            applyFilterButton.addEventListener('click', debounce(updatePeopleFilter, 500)); // Debounce by 500ms
+            
+            // Add event listener for the search input
+            peopleSearchInput.addEventListener('input', filterPeopleBySearchTerm);
+
 
             // Update character count on input
             messageInput.addEventListener('input', () => {

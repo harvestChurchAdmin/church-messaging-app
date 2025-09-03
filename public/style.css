@@ -95,7 +95,6 @@ body.app-body {
     margin-bottom: 15px; /* Space between scrollable list and button */
 }
 
-
 /* --- Login Page Specific Styles (login.html) --- */
 body.login-body {
     display: flex;
@@ -116,7 +115,6 @@ body.login-body {
     padding: 20px 0; /* Add some vertical padding */
 }
 
-
 .login-card {
     text-align: center;
     max-width: 400px; /* Max width for the login card */
@@ -124,7 +122,6 @@ body.login-body {
     padding: 40px; /* Consistent padding */
     /* .card already provides background, border-radius, box-shadow */
 }
-
 
 /* Harvest Church Logo specific styling - for both login and app header */
 .logo {
@@ -180,7 +177,6 @@ body.login-body {
     width: 24px;
     height: 24px;
 }
-
 
 /* --- User Info Container (for logout button and user details) --- */
 /* Now directly inside .app-header, so relative positioning is not needed here */
@@ -339,12 +335,10 @@ button:active {
     background-color: #4cae4c;
 }
 
-
 /* --- Tag Filter Section --- */
 /* The card class already makes this a flex column.
    We just need to ensure the h1, then #tagFilter (scrollable),
    then the button and cooldown wrapper stack correctly. */
-
 
 /* Style for the inner tag container to be scrollable */
 .tag-content-wrapper { /* This is the div that contains the actual tags/folders */
@@ -353,18 +347,6 @@ button:active {
     overflow-y: auto; /* Enable vertical scrolling */
     /* Remove border/padding/background from here, they are on #tagFilter */
 }
-
-#tagFilter { /* This is the div that now wraps only the tag content for the scrollbar */
-    flex-grow: 1; /* Allow this to grow and take space in the parent .card */
-    max-height: 300px; /* Limit height of scrollable area */
-    overflow-y: auto; /* Make it scrollable */
-    border: 1px solid #eee; /* Apply border to the scrollable area */
-    border-radius: 5px;
-    padding: 10px;
-    background-color: #fdfdfd;
-    margin-bottom: 15px; /* Space between scrollable list and button */
-}
-
 
 .tag-node {
     margin-bottom: 5px;
@@ -385,7 +367,6 @@ button:active {
     margin-right: 8px; /* Space between checkbox and label */
     transform: scale(1.2); /* Make checkbox slightly larger */
 }
-
 
 .folder-toggle {
     margin-right: 8px;
@@ -412,7 +393,6 @@ button:active {
 .tag-item input[type="checkbox"] {
     margin-right: 8px;
 }
-
 
 /* --- SMS History Section --- */
 .sms-history-controls {
@@ -477,6 +457,50 @@ button:active {
 .status-pending {
     color: #ffc107; /* Yellow/Orange */
     font-weight: bold;
+}
+
+/* NEW: Legend Item Styling */
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 10px;
+}
+
+.legend-item span:first-child {
+    font-size: 0.9em;
+    margin-right: 5px;
+}
+
+/* NEW: Pagination Controls Styling */
+.pagination-controls {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.pagination-controls button {
+    background-color: #6c757d; /* Match refresh button */
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+.pagination-controls button:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+}
+
+.pagination-controls button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 
 /* --- Message Box Styling --- */
@@ -595,5 +619,14 @@ button:active {
 
     .sms-history-controls {
         text-align: left; /* Align refresh button to the left on small screens */
+    }
+
+    .pagination-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .pagination-controls button {
+        width: 100%;
     }
 }

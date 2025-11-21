@@ -1,9 +1,7 @@
 // services/breeze-api.js
 
 const axios = require('axios');
-const twilioService = require('./twilio-service'); // Import the existing Twilio service
 
-// Load environment variables for API Key and Subdomain
 require('dotenv').config();
 
 const BREEZE_API_KEY = process.env.BREEZE_API_KEY;
@@ -118,51 +116,9 @@ async function getTagsInFolder(folderId) {
     }
 }
 
-/**
- * Sends an SMS message using the dedicated Twilio service.
- * @param {string} to - The recipient phone number(s), comma-separated.
- * @param {string} message - The message content.
- * @returns {Promise<object>} A promise that resolves to the Twilio message object(s) or SIDs.
- */
-/* async function sendSms(to, message) {
-    try {
-        console.log(`Delegating SMS sending to twilio-service.js for numbers: ${to}`);
-        // The twilioService.sendMessage function expects a single number for each call
-        // However, our frontend sends a comma-separated string for 'to'.
-        // We need to adapt this by splitting and calling sendMessage for each.
-        const recipientNumbers = to.split(',').map(num => num.trim()).filter(num => num);
-
-        const smsPromises = recipientNumbers.map(async (number) => {
-            try {
-                // Call the sendMessage function from your twilio-service.js
-                const twilioResponse = await twilioService.sendMessage(number, message);
-                return twilioResponse.sid; // Assuming sendMessage returns an object with a 'sid'
-            } catch (singleSmsError) {
-                console.error(`Failed to send SMS to ${number} via twilio-service:`, singleSmsError.message);
-                // Log more specific Twilio errors if available from twilio-service
-                return null; // Return null for failed messages
-            }
-        });
-
-        const results = await Promise.all(smsPromises);
-        const successfulSids = results.filter(sid => sid !== null);
-
-        if (successfulSids.length > 0) {
-            return { success: true, sids: successfulSids };
-        } else {
-            throw new Error('All SMS messages failed to send via twilio-service.');
-        }
-
-    } catch (error) {
-        console.error('Error in sendSms (breeze-api.js) when calling twilio-service:', error.message);
-        throw error;
-    }
-} */
-
 module.exports = {
     getPeople,
     getPeopleById,
     getTagFolders,
     getTagsInFolder,
-    //sendSms
 };

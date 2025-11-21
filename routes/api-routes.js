@@ -3,13 +3,11 @@
 const express = require('express');
 const router = express.Router();
 const breezeApi = require('../services/breeze-api');
-const smsService = require('../services/sms-service'); // Import the new SMS service
-const authCheck = require('../middleware/authCheck'); // Corrected path to authCheck middleware
-const db = require('../utils/db'); // Import the SQLite database utility
+const smsService = require('../services/sms-service');
+const db = require('../utils/db');
 
 // Define the fields we want to request from the Breeze API for each person.
-const BASIC_PEOPLE_FIELDS = ['id', 'first_name', 'last_name']; 
-const PHONE_FIELD_ID = '1413026988'; 
+const BASIC_PEOPLE_FIELDS = ['id', 'first_name', 'last_name'];
 
 // Helper function to recursively fetch tags for folders and their children
 async function fetchAndNestTags(folderNode, allFolders) {
@@ -40,7 +38,7 @@ async function fetchAndNestTags(folderNode, allFolders) {
 }
 
 // API route to get people from Breeze
-router.get('/people', authCheck, async (req, res) => {
+router.get('/people', async (req, res) => {
     try {
         const tagIdsRaw = req.query.tag_id; 
         let people = [];
@@ -106,7 +104,7 @@ router.get('/people', authCheck, async (req, res) => {
 });
 
 // API route to get structured tags and folders for the filter UI
-router.get('/tags', authCheck, async (req, res) => {
+router.get('/tags', async (req, res) => {
     try {
         const folders = await breezeApi.getTagFolders(); 
         
@@ -161,7 +159,7 @@ router.get('/tags', authCheck, async (req, res) => {
 });
 
 // API route to send SMS
-router.post('/send-sms', authCheck, async (req, res) => {
+router.post('/send-sms', async (req, res) => {
     // Destructure new fields: recipientName and senderName
     const { to, message, recipientName, senderName } = req.body; 
 
@@ -192,7 +190,7 @@ router.post('/send-sms', authCheck, async (req, res) => {
 });
 
 // API route to get SMS history
-router.get('/sms-history', authCheck, (req, res) => {
+router.get('/sms-history', (req, res) => {
     try {
         // Fetch all SMS records from the database, including new name fields
         const records = db.getDb().prepare('SELECT * FROM sms_records ORDER BY createdAt DESC').all();

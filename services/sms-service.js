@@ -1,16 +1,15 @@
 // services/sms-service.js
 
 const twilio = require('twilio');
-require('dotenv').config(); // Ensure environment variables are loaded
-const db = require('../utils/db'); // Import the SQLite database utility
+require('dotenv').config();
+const db = require('../utils/db');
+const { normalizePhoneNumber } = require('../utils/phone');
 
-// Retrieve Twilio credentials from environment variables
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-const SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:3000'; // Base URL for callbacks
+const SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:3000';
 
-// Basic validation for Twilio credentials
 if (!ACCOUNT_SID || !AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
     console.error('Error: Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) not set.');
     console.error('Please ensure your .env file contains these Twilio variables.');
@@ -30,13 +29,20 @@ const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
  * @returns {Promise<Object>} A promise that resolves to an object indicating success and SIDs.
  */
 async function sendSms(toPhoneNumber, messageBody, senderUserId, recipientName, senderName) {
-    // Validate inputs before proceeding
     if (!toPhoneNumber || !messageBody || !senderUserId || !recipientName || !senderName) {
         throw new Error('Recipient phone number(s), message body, sender user ID, recipient name, and sender name are required.');
     }
 
-    // Split comma-separated numbers and trim whitespace for individual sending
-    const recipientNumbers = toPhoneNumber.split(',').map(num => num.trim()).filter(num => num);
+    if (!ACCOUNT_SID || !AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+        throw new Error('Twilio credentials are not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.');
+    }
+
+    const recipientNumbers = Array.from(new Set(
+        toPhoneNumber
+            .split(',')
+            .map(num => normalizePhoneNumber(num.trim()))
+            .filter(Boolean)
+    ));
 
     if (recipientNumbers.length === 0) {
         throw new Error('No valid recipient phone numbers provided.');
@@ -49,27 +55,27 @@ async function sendSms(toPhoneNumber, messageBody, senderUserId, recipientName, 
         let errorCode = null;
 
         try {
-            // Construct the status callback URL for Twilio
-            // This URL will be called by Twilio when the message status changes
-            const statusCallbackUrl = `${SERVER_BASE_URL}/twilio-status-callback`;
+            const statusCallbackUrl = `${SERVER_BASE_URL.replace(/\/+$/, '')}/twilio-status-callback`;
 
-            console.log(`[sms-service] Attempting to send message from ${TWILIO_PHONE_NUMBER} to ${number} (Recipient: ${recipientName}): "${messageBody}"`);
+            const fromNumber = normalizePhoneNumber(TWILIO_PHONE_NUMBER);
+
+            console.log(`[sms-service] Attempting to send message from ${fromNumber} to ${number} (Recipient: ${recipientName}): "${messageBody}"`);
             console.log(`[sms-service] Twilio Status Callback URL: ${statusCallbackUrl}`);
 
             const message = await client.messages.create({
                 body: messageBody,
-                from: TWILIO_PHONE_NUMBER,
+                from: fromNumber,
                 to: number,
-                statusCallback: statusCallbackUrl // Enable status callbacks
+                statusCallback: statusCallbackUrl
             });
             messageSid = message.sid;
-            initialStatus = message.status; // Twilio's immediate status (e.g., 'queued')
+            initialStatus = message.status;
 
             console.log(`[sms-service] SMS initiated successfully to ${number}. SID: ${message.sid}. Status: ${message.status}. Sent by user: ${senderUserId}`);
             
         } catch (singleSmsError) {
             console.error(`[sms-service] Failed to send SMS to ${number}:`, singleSmsError.message);
-            initialStatus = 'failed_to_send'; // Custom status for internal sending failure
+            initialStatus = 'failed_to_send';
             errorMessage = singleSmsError.message;
             if (singleSmsError.code) {
                 console.error(`[sms-service] Twilio Error Code for ${number}: ${singleSmsError.code}`);

@@ -2,33 +2,11 @@
 
 const sqlite3 = require('better-sqlite3');
 const path = require('path');
+const { normalizePhoneNumber } = require('./phone');
 
 // Define the database file path
 const dbPath = path.join(__dirname, '..', 'sms_logs.db');
 let db;
-
-/**
- * Normalizes a phone number to E.164 format (e.g., +12501234567).
- * Assumes North American numbers if no country code is present.
- * This function is duplicated here for immediate fix; ideally, this would be in a shared utility.
- * @param {string} phoneNumber - The phone number to normalize.
- * @returns {string} The normalized E.164 phone number.
- */
-function normalizePhoneNumber(phoneNumber) {
-    if (!phoneNumber) return '';
-    let cleaned = phoneNumber.replace(/\D/g, ''); // Remove all non-digit characters
-
-    // Basic North American assumption: if 10 digits and no leading '1', prepend '1'.
-    // Then ensure it starts with a '+'
-    if (cleaned.length === 10 && !cleaned.startsWith('1')) {
-        cleaned = '1' + cleaned;
-    }
-    if (!cleaned.startsWith('+')) {
-        cleaned = '+' + cleaned;
-    }
-    console.log(`[normalizePhoneNumber] Input: "${phoneNumber}", Output: "${cleaned}"`);
-    return cleaned;
-}
 
 /**
  * Initializes the database connection and creates necessary tables if they don't exist.
